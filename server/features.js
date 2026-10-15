@@ -58,6 +58,8 @@ import { CoopOperations } from './coop.js';
 
 /** @param {import('./game.js').Game} core @returns {FeatureServices} */
 export function createFeatures(core) {
+  // Facades close over this registry, so cross-feature getters must stay lazy.
+  // During composition some referenced services have not been bound yet.
   /** @type {FeatureServices} */
   const features = /** @type {FeatureServices} */ ({});
   /** @type {HangarCapabilities} */
@@ -1167,6 +1169,8 @@ export function createFeatures(core) {
     you: core.you.bind(core),
   };
   features.coop = bindOperations(CoopOperations, coopCapabilities);
+  // These narrow aliases are intentional dependencies, not full feature access.
+  // Shared core fields remain getter/setter-backed so replacement is observable.
   features.bonuses = { bonus: features.specialists.bonus };
   features.shipStats = { stats: features.fronts.stats };
   features.world = { worldPayload: features.frontier.worldPayload };

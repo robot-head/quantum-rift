@@ -1,4 +1,4 @@
-// Quantum Rift 0.6 "Fleets and Fronts" server feature operations: invasions,
+// Fronts feature operations: invasions,
 // anomalies and server events, daily and weekly goals, faction stores, and the expanded job types.
 // (2.6: fleets became the Armada, see server/coop.js; territory and Dreadnoughts were removed.)
 import {

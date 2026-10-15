@@ -1,4 +1,4 @@
-// 1.1: the ship and captain panel (I), after Endless Sky's player info: your ship, cargo (with jettison), combat
+// the ship and captain panel (I), after Endless Sky's player info: your ship, cargo (with jettison), combat
 // rating, fleet orders, and the rival captains of the Rift with how they feel about you.
 import {
   SYS,
@@ -86,7 +86,7 @@ export function infoHtml(G, tab) {
       }
     </div></div>`;
   }
-  if (tab === 'career') return careerHtml(G); // 2.4
+  if (tab === 'career') return careerHtml(G);
   if (tab === 'fleet') {
     const ord = G.order || 'gather';
     return `<div class="sect" style="margin-top:0">WINGMATE ORDERS</div><div class="dim small" style="margin-bottom:6px">Orders apply to your escorts, wingmates and fighters. Give the same order again to cancel it.</div>
@@ -118,7 +118,7 @@ export function infoHtml(G, tab) {
       .join('')}</table>`;
 }
 
-// 2.4: everything you own and everything you have done, on one page
+// everything you own and everything you have done, on one page
 function careerHtml(G) {
   const y = G.you,
     A = G.A,
@@ -186,7 +186,7 @@ function careerHtml(G) {
   </div></div>`;
 }
 
-// 2.5.2: where a good in your hold sells best, among the markets you have visited within four jumps
+// where a good in your hold sells best, among the markets you have visited within four jumps
 export function bestSale(G, cid) {
   const y = G.you,
     seen = new Set(y.explored || []),

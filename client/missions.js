@@ -1,4 +1,4 @@
-// 1.0.1: active mission tracking. Works out where each mission (and the main story) wants you to go, for the MISSIONS
+// active mission tracking. Works out where each mission (and the main story) wants you to go, for the MISSIONS
 // companion tab and the gold target markers on the galaxy map.
 import { SYS, STELLARS } from '/shared/galaxy.js';
 import { STORY } from '/shared/story.js';
@@ -21,7 +21,7 @@ export function missionTargets(G) {
   const out = [],
     S = y.story;
   const ti = y.tut ?? TUTORIAL.length,
-    T = TUTORIAL[ti]; // 1.0.3: the current career step leads the list
+    T = TUTORIAL[ti]; // the current career step leads the list
   if (T)
     out.push({
       key: 'career',
@@ -77,7 +77,7 @@ export function missionTargets(G) {
   }
   for (const X of y.arcs || [])
     if (X.active) {
-      // 1.2 faction arcs
+      // faction arcs
       const a = X.active,
         sys = a.type === 'carry' ? sysOf(a.dest) : a.ready ? sysOf(a.back) : a.sys;
       const status =
@@ -113,7 +113,7 @@ export function missionTargets(G) {
     else if (m.type === 'bounty' || m.type === 'assassinate')
       status = `Destroy ${m.targetName} in ${there}.`;
     else if (m.type === 'warband')
-      status = `Armada contract: destroy ${m.targetName} in ${there}, together.`; // 2.6
+      status = `Armada contract: destroy ${m.targetName} in ${there}, together.`;
     else if (m.type === 'salvage')
       status = `Recover the salvage at the marked point in ${there}, then land anywhere.`;
     else if (m.type === 'rescue') status = `Find and board the ${m.wreckName} in ${there}.`;
@@ -126,7 +126,7 @@ export function missionTargets(G) {
       (m.type === 'cargo' || m.type === 'smuggle' || m.type === 'supply') &&
       m.qty > (y.shipStats.cargo || 0)
     )
-      status = `⚠ Needs ${m.qty} t of hold: switch ships for this step. ${status}`; // 2.5.2: the step waits for a ship that can do it
+      status = `⚠ Needs ${m.qty} t of hold: switch ships for this step. ${status}`; // the step waits for a ship that can do it
     if (m.deadline) {
       const left = Math.max(0, Math.ceil((m.deadline - Date.now()) / 60000));
       status = `⏱ ${left} min left · ${status}`;
@@ -152,7 +152,7 @@ export function missionTargets(G) {
   return out;
 }
 
-// 2.4: the story journal under the active missions
+// the story journal under the active missions
 function journalHtml(G) {
   const Q = G.you.quests;
   if (!Q || !Q.done || !Q.done.length) return '';

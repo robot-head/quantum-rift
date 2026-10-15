@@ -81,7 +81,7 @@ export function onCoopMsg(m) {
   loadDms();
   switch (m.t) {
     case 'social': {
-      // 2.6 QoL: a friend coming online gets a short note
+      // QoL: a friend coming online gets a short note
       const before = new Map(((G.social && G.social.friends) || []).map((f) => [f.name, f.status]));
       if (m.social !== undefined) G.social = m.social;
       if (m.armada !== undefined && G.you) G.you.armada = m.armada;

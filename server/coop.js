@@ -30,6 +30,49 @@ const cleanName = (n) =>
     .trim()
     .slice(0, 20);
 
+// Caller validates both offers before either ledger is mutated. Cargo enters station
+// storage first; hold capacity is resolved only after both sides have transferred.
+function transferTradeOffer(from, to, offer, assets) {
+  const received = [];
+  if (offer.credits) {
+    from.credits -= offer.credits;
+    const net = Math.round(offer.credits * (1 - TRADE.fee));
+    to.credits += net;
+    received.push(`${credits(net)} credits`);
+  }
+  for (const [itemKey, quantity] of Object.entries(offer.items || {})) {
+    const [kind, itemId, grade] = itemKey.split(':');
+    if (kind === 'cargo') {
+      from.cargo[itemId] -= quantity;
+      if (!from.cargo[itemId]) delete from.cargo[itemId];
+      to.storage = to.storage || {};
+      to.storage[itemId] = (to.storage[itemId] || 0) + quantity;
+      const commodity = COMMODITIES.find((c) => c.id === itemId);
+      received.push(`${quantity} t ${commodity ? commodity.name : itemId}`);
+    }
+    if (kind === 'mat') {
+      from.mats[itemId][+grade] -= quantity;
+      to.mats[itemId][+grade] += quantity;
+      received.push(`${quantity} ${itemId} ${GRADES[+grade]}`);
+    }
+    if (kind === 'bp') {
+      from.bp[itemId] -= quantity;
+      to.bp = to.bp || {};
+      to.bp[itemId] = (to.bp[itemId] || 0) + quantity;
+      received.push(
+        `${quantity} ${assets.ships[itemId] ? assets.ships[itemId].name : ''} blueprints`,
+      );
+    }
+    if (kind === 'parts') {
+      from.parts[itemId] -= quantity;
+      to.parts = to.parts || {};
+      to.parts[itemId] = (to.parts[itemId] || 0) + quantity;
+      received.push(`${quantity} ${assets.ships[itemId] ? assets.ships[itemId].name : ''} parts`);
+    }
+  }
+  return received;
+}
+
 export const CoopOperations = {
   // ------------------------------------------------------------------ start-up and save migration
   coopInit() {
@@ -783,32 +826,36 @@ export const CoopOperations = {
     }
   },
   // what a captain can put up: credits, goods in the hold, crates, specialist blueprints and parts
-  tradeClean(d, give) {
-    const g = {},
-      n = (v) => Math.max(0, Math.floor(+v || 0));
-    let lines = 0;
-    if (n(give.credits)) {
-      if (n(give.credits) > d.credits) return 'You do not have that many credits.';
-      g.credits = n(give.credits);
+  tradeClean(player, offer) {
+    const cleaned = {},
+      quantityOf = (value) => Math.max(0, Math.floor(+value || 0));
+    let itemLines = 0;
+    if (quantityOf(offer.credits)) {
+      if (quantityOf(offer.credits) > player.credits) return 'You do not have that many credits.';
+      cleaned.credits = quantityOf(offer.credits);
     }
-    for (const [k, v] of Object.entries(give.items || {})) {
-      const q = n(v);
-      if (!q) continue;
-      if (++lines > TRADE.maxLines) return `Up to ${TRADE.maxLines} different items per side.`;
-      const [kind, a, b] = String(k).split(':');
+    for (const [itemKey, value] of Object.entries(offer.items || {})) {
+      const quantity = quantityOf(value);
+      if (!quantity) continue;
+      if (++itemLines > TRADE.maxLines) return `Up to ${TRADE.maxLines} different items per side.`;
+      const [kind, itemId, grade] = String(itemKey).split(':');
       if (kind === 'cargo') {
-        if ((d.cargo[a] || 0) < q) return 'You do not have that much in your hold.';
+        if ((player.cargo[itemId] || 0) < quantity)
+          return 'You do not have that much in your hold.';
       } else if (kind === 'mat') {
-        if (!MATERIALS.includes(a) || !(d.mats[a] && d.mats[a][+b] >= q))
+        if (
+          !MATERIALS.includes(itemId) ||
+          !(player.mats[itemId] && player.mats[itemId][+grade] >= quantity)
+        )
           return 'You do not have those crates.';
       } else if (kind === 'bp') {
-        if (!((d.bp || {})[a] >= q)) return 'You do not have those blueprints.';
+        if (!((player.bp || {})[itemId] >= quantity)) return 'You do not have those blueprints.';
       } else if (kind === 'parts') {
-        if (!((d.parts || {})[a] >= q)) return 'You do not have those parts.';
+        if (!((player.parts || {})[itemId] >= quantity)) return 'You do not have those parts.';
       } else return 'That cannot be traded.';
-      (g.items = g.items || {})[k] = q;
+      (cleaned.items = cleaned.items || {})[itemKey] = quantity;
     }
-    return g;
+    return cleaned;
   },
   tradePush(id) {
     const T = this.trades[id];
@@ -846,102 +893,78 @@ export const CoopOperations = {
       }
     }
   },
-  tradeDo(T) {
-    const pa = this.db.get(T.a),
-      pb = this.db.get(T.b),
-      sa = this.sessionOf(T.a),
-      sb = this.sessionOf(T.b);
-    if (!pa || !pb || !sa || !sb || !this.atOwnStation(pa) || !this.atOwnStation(pb))
+  tradeDo(trade) {
+    const playerA = this.db.get(trade.a),
+      playerB = this.db.get(trade.b),
+      sessionA = this.sessionOf(trade.a),
+      sessionB = this.sessionOf(trade.b);
+    if (
+      !playerA ||
+      !playerB ||
+      !sessionA ||
+      !sessionB ||
+      !this.atOwnStation(playerA) ||
+      !this.atOwnStation(playerB)
+    )
       return this.tradeCancel(
-        T.id,
+        trade.id,
         'Trade cancelled: both captains must stay docked at their own stations.',
       );
-    // check everything again at the moment of the swap, so a trade either completes fully or not at all
-    for (const [p, g] of [
-      [pa, T.give[T.a]],
-      [pb, T.give[T.b]],
+    // Revalidate both sides before any mutation: offers are not escrowed while
+    // captains negotiate, so credits and inventory may have changed.
+    for (const [player, offer] of [
+      [playerA, trade.give[trade.a]],
+      [playerB, trade.give[trade.b]],
     ]) {
-      const c = this.tradeClean(p, g);
-      if (typeof c === 'string')
+      const checkedOffer = this.tradeClean(player, offer);
+      if (typeof checkedOffer === 'string')
         return this.tradeCancel(
-          T.id,
-          `Trade cancelled: ${p.name} no longer has everything offered.`,
+          trade.id,
+          `Trade cancelled: ${player.name} no longer has everything offered.`,
         );
     }
-    const move = (from, to, g) => {
-      const got = [];
-      if (g.credits) {
-        from.credits -= g.credits;
-        const net = Math.round(g.credits * (1 - TRADE.fee));
-        to.credits += net;
-        got.push(`${credits(net)} credits`);
-      }
-      for (const [k, q] of Object.entries(g.items || {})) {
-        const [kind, a, b] = k.split(':');
-        if (kind === 'cargo') {
-          from.cargo[a] -= q;
-          if (!from.cargo[a]) delete from.cargo[a];
-          to.storage = to.storage || {};
-          to.storage[a] = (to.storage[a] || 0) + q;
-          const C = COMMODITIES.find((c) => c.id === a);
-          got.push(`${q} t ${C ? C.name : a}`);
-        }
-        if (kind === 'mat') {
-          from.mats[a][+b] -= q;
-          to.mats[a][+b] += q;
-          got.push(`${q} ${a} ${GRADES[+b]}`);
-        }
-        if (kind === 'bp') {
-          from.bp[a] -= q;
-          to.bp = to.bp || {};
-          to.bp[a] = (to.bp[a] || 0) + q;
-          got.push(`${q} ${this.A.ships[a] ? this.A.ships[a].name : ''} blueprints`);
-        }
-        if (kind === 'parts') {
-          from.parts[a] -= q;
-          to.parts = to.parts || {};
-          to.parts[a] = (to.parts[a] || 0) + q;
-          got.push(`${q} ${this.A.ships[a] ? this.A.ships[a].name : ''} parts`);
-        }
-      }
-      return got;
-    };
-    const toB = move(pa, pb, T.give[T.a]),
-      toA = move(pb, pa, T.give[T.b]);
+    const receivedByB = transferTradeOffer(playerA, playerB, trade.give[trade.a], this.A),
+      receivedByA = transferTradeOffer(playerB, playerA, trade.give[trade.b], this.A);
     // goods land in station storage, then go into the hold if there is room
-    for (const [p, o] of [
-      [pa, sa],
-      [pb, sb],
+    for (const [player, session] of [
+      [playerA, sessionA],
+      [playerB, sessionB],
     ]) {
-      if (!p.storage) continue;
-      const st = this.stats(p);
-      let room = st.cargo - this.holdUsed(p);
-      for (const [k, v] of Object.entries(p.storage)) {
-        const q = Math.min(v, Math.max(0, room));
-        if (q > 0) {
-          p.cargo[k] = (p.cargo[k] || 0) + q;
-          p.storage[k] -= q;
-          room -= q;
-          if (!p.storage[k]) delete p.storage[k];
+      if (!player.storage) continue;
+      const stats = this.stats(player);
+      let room = stats.cargo - this.holdUsed(player);
+      for (const [commodityId, storedQuantity] of Object.entries(player.storage)) {
+        const quantity = Math.min(storedQuantity, Math.max(0, room));
+        if (quantity > 0) {
+          player.cargo[commodityId] = (player.cargo[commodityId] || 0) + quantity;
+          player.storage[commodityId] -= quantity;
+          room -= quantity;
+          if (!player.storage[commodityId]) delete player.storage[commodityId];
         }
       }
     }
-    const line = (got) => (got.length ? got.join(', ') : 'nothing');
-    this.log(pa, `Traded with ${pb.name}: gave ${line(toB)}; got ${line(toA)}.`);
-    this.log(pb, `Traded with ${pa.name}: gave ${line(toA)}; got ${line(toB)}.`);
-    delete this.trades[T.id];
-    sa.trade = sb.trade = null;
-    for (const [o, got, w] of [
-      [sa, toA, pb.name],
-      [sb, toB, pa.name],
+    const describeOffer = (received) => (received.length ? received.join(', ') : 'nothing');
+    this.log(
+      playerA,
+      `Traded with ${playerB.name}: gave ${describeOffer(receivedByB)}; got ${describeOffer(receivedByA)}.`,
+    );
+    this.log(
+      playerB,
+      `Traded with ${playerA.name}: gave ${describeOffer(receivedByA)}; got ${describeOffer(receivedByB)}.`,
+    );
+    delete this.trades[trade.id];
+    sessionA.trade = sessionB.trade = null;
+    for (const [session, received, partnerName] of [
+      [sessionA, receivedByA, playerB.name],
+      [sessionB, receivedByB, playerA.name],
     ]) {
-      this.send(o, { t: 'trade2', trade: null });
+      this.send(session, { t: 'trade2', trade: null });
       this.toast(
-        o,
-        `Trade with ${w} complete. You received ${line(got)}.${got.some((x) => / t /.test(x)) ? ' Goods that did not fit your hold wait in exchange storage.' : ''}`,
+        session,
+        `Trade with ${partnerName} complete. You received ${describeOffer(received)}.${received.some((x) => / t /.test(x)) ? ' Goods that did not fit your hold wait in exchange storage.' : ''}`,
       );
-      this.you(o);
-      this.landed(o);
+      this.you(session);
+      this.landed(session);
     }
     this.db.touch();
   },

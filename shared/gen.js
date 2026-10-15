@@ -492,17 +492,20 @@ function makeStellar(sys, fac, r, k, usedIds) {
 
 // ------------------------------------------------------------------ geometry
 function segCross(a, b, c, d) {
-  // proper intersection of segments ab and cd (shared endpoints don't count)
+  // proper intersection of segments ab and cd (shared endpoints do not count)
   if (a === c || a === d || b === c || b === d) return false;
-  const o = (p, q, r) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
-  return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b);
+  const orientation = (p, q, r) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+  return (
+    orientation(a, b, c) !== orientation(a, b, d) && orientation(c, d, a) !== orientation(c, d, b)
+  );
 }
 function segDist(p, a, b) {
   const dx = b.x - a.x,
     dy = b.y - a.y,
-    L = dx * dx + dy * dy || 1,
-    t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / L));
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+    // A zero-length segment projects to its endpoint without division by zero.
+    lengthSquared = dx * dx + dy * dy || 1,
+    projection = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSquared));
+  return Math.hypot(p.x - (a.x + projection * dx), p.y - (a.y + projection * dy));
 }
 
 // ------------------------------------------------------------------ main
@@ -660,57 +663,59 @@ export function expandGalaxy(SYSTEMS, FACTIONS) {
   }
   // hyperspace routes: keep the anchor routes, then add the shortest non-crossing routes until everything is connected
   const edges = anchorEdges.map(([a, b]) => [a, b]);
-  const deg = new Map(SYSTEMS.map((s) => [s, s.links.length]));
-  const parent = new Map(SYSTEMS.map((s) => [s, s]));
-  const find = (s) => {
-    while (parent.get(s) !== s) {
-      parent.set(s, parent.get(parent.get(s)));
-      s = parent.get(s);
+  const degreeBySystem = new Map(SYSTEMS.map((s) => [s, s.links.length]));
+  // Union-find tracks connected components as links are accepted. Keep candidate
+  // traversal order stable: the second pass also consumes the seeded RNG.
+  const componentParent = new Map(SYSTEMS.map((s) => [s, s]));
+  const componentRoot = (s) => {
+    while (componentParent.get(s) !== s) {
+      componentParent.set(s, componentParent.get(componentParent.get(s)));
+      s = componentParent.get(s);
     }
     return s;
   };
-  for (const [a, b] of edges) parent.set(find(a), find(b));
-  const cand = [];
+  for (const [a, b] of edges) componentParent.set(componentRoot(a), componentRoot(b));
+  const candidateLinks = [];
   for (let i = 0; i < SYSTEMS.length; i++) {
     const a = SYSTEMS[i];
-    const near = SYSTEMS.map((b) => [Math.hypot(a.x - b.x, a.y - b.y), b])
+    const nearestSystems = SYSTEMS.map((b) => [Math.hypot(a.x - b.x, a.y - b.y), b])
       .filter(([d, b]) => b !== a && d < 230)
       .sort((x, y) => x[0] - y[0])
       .slice(0, 6);
-    for (const [d, b] of near) if (a.id < b.id) cand.push([d, a, b]);
+    for (const [d, b] of nearestSystems) if (a.id < b.id) candidateLinks.push([d, a, b]);
   }
-  cand.sort((x, y) => x[0] - y[0]);
+  candidateLinks.sort((x, y) => x[0] - y[0]);
   const link = (a, b) => {
     a.links.push(b.id);
     b.links.push(a.id);
     edges.push([a, b]);
-    deg.set(a, deg.get(a) + 1);
-    deg.set(b, deg.get(b) + 1);
-    parent.set(find(a), find(b));
+    degreeBySystem.set(a, degreeBySystem.get(a) + 1);
+    degreeBySystem.set(b, degreeBySystem.get(b) + 1);
+    componentParent.set(componentRoot(a), componentRoot(b));
   };
   for (const pass of [0, 1]) {
-    for (const [d, a, b] of cand) {
+    for (const [d, a, b] of candidateLinks) {
       if (a.links.includes(b.id)) continue;
       if (a.anchor && b.anchor) continue; // anchor-to-anchor routes are hand-made
-      const joins = find(a) !== find(b);
-      const maxDeg = (s) => (s.anchor ? 6 : 4);
-      if (deg.get(a) >= maxDeg(a) || deg.get(b) >= maxDeg(b)) {
-        if (!joins || pass === 0) continue;
+      const connectsComponents = componentRoot(a) !== componentRoot(b);
+      const maxDegree = (s) => (s.anchor ? 6 : 4);
+      if (degreeBySystem.get(a) >= maxDegree(a) || degreeBySystem.get(b) >= maxDegree(b)) {
+        if (!connectsComponents || pass === 0) continue;
       }
-      if (!joins && (pass === 1 || r() > 0.6 || d > 170)) continue;
+      if (!connectsComponents && (pass === 1 || r() > 0.6 || d > 170)) continue;
       if (edges.some(([u, v]) => segCross(a, b, u, v))) continue;
       link(a, b);
     }
   }
   // anything still cut off gets its shortest route, crossing or not
   for (let guard = 0; guard < 50; guard++) {
-    const root = find(byId.qgate),
-      lone = SYSTEMS.filter((s) => find(s) !== root);
-    if (!lone.length) break;
+    const root = componentRoot(byId.qgate),
+      disconnectedSystems = SYSTEMS.filter((s) => componentRoot(s) !== root);
+    if (!disconnectedSystems.length) break;
     let best = null;
-    for (const a of lone)
+    for (const a of disconnectedSystems)
       for (const b of SYSTEMS)
-        if (find(b) === root) {
+        if (componentRoot(b) === root) {
           const d = Math.hypot(a.x - b.x, a.y - b.y);
           if (!best || d < best[0]) best = [d, a, b];
         }
@@ -760,7 +765,7 @@ export function frontierSites(SYSTEMS, n = 10) {
   return out;
 }
 
-// ------------------------------------------------------------------ 0.8: Sol and the Gateway region
+// ------------------------------------------------------------------ Sol and the Gateway region
 // Added after generation so none of the 200 generated systems (or their ids) change. Sol sits near the centre of the map;
 // its wormhole leads to ten Farside systems off the north-west edge, reachable only through the Gateway.
 export const FARSIDE = [
@@ -952,7 +957,7 @@ export function addSolGateway(SYSTEMS) {
   return { sol, farside: added };
 }
 
-// ------------------------------------------------------------------ 2.3: more moons and more asteroid fields
+// ------------------------------------------------------------------ moons and asteroid fields
 // A separate pass after the galaxy is built, seeded per system, so no existing world, field or id changes.
 const MOON_COLORS = ['#9a948c', '#b8b2a8', '#7d7871', '#a89c88', '#c9d4dc', '#8e8a9a', '#a7a08f'];
 const MOON_DESC = [

@@ -1,5 +1,5 @@
-// Quantum Rift 0.9 "Hostile Space" data: hostile levels and the "can I win?" scan, loot chests, Station Holdout
-// waves, and the Umbral Eclipse. (2.6: directives and solo armadas were removed.)
+// Hostile levels and the "can I win?" scan, loot chests, Station Holdout waves,
+// and the Umbral Eclipse. Shared calculations keep client estimates in sync.
 
 // ------------------------------------------------------------------ levels: from a ship's effective strength
 export function levelOf(power) {
@@ -7,17 +7,21 @@ export function levelOf(power) {
 }
 // odds of winning a straight fight between two effective strengths (a logistic on the level gap)
 export function winOdds(mine, theirs) {
-  const d = levelOf(mine) - levelOf(theirs);
-  return 1 / (1 + Math.exp(-d / 2.5));
+  const levelGap = levelOf(mine) - levelOf(theirs);
+  return 1 / (1 + Math.exp(-levelGap / 2.5));
 }
 // a player's effective strength: hull strength scaled by their bonuses, plus a share of their escorts
-export function playerPower(A, hull, bonus = {}, escorts = []) {
-  const H = A.ships[hull];
-  if (!H) return 10;
-  const b = 1 + ((bonus.damagePct || 0) + (bonus.shieldPct || 0) + (bonus.armorPct || 0)) / 300;
+export function playerPower(assets, hull, bonus = {}, escorts = []) {
+  const ship = assets.ships[hull];
+  if (!ship) return 10;
+  const bonusMultiplier =
+    1 + ((bonus.damagePct || 0) + (bonus.shieldPct || 0) + (bonus.armorPct || 0)) / 300;
   return (
-    (H.strength || 10) * b +
-    escorts.reduce((t, h) => t + ((A.ships[h] || {}).strength || 0) * 0.6, 0)
+    (ship.strength || 10) * bonusMultiplier +
+    escorts.reduce(
+      (total, escortHull) => total + ((assets.ships[escortHull] || {}).strength || 0) * 0.6,
+      0,
+    )
   );
 }
 
@@ -74,11 +78,11 @@ export const HOLDOUT = {
       [762, 763, 763],
       [764, 763, 763, 762],
     ];
-    const p = pools[n - 1];
-    const out = [];
-    for (let i = 0; i < 2 + Math.ceil(n / 2); i++) out.push(p[i % p.length]);
-    if (n === 10) out[0] = 764;
-    return out;
+    const hullPool = pools[n - 1];
+    const hulls = [];
+    for (let i = 0; i < 2 + Math.ceil(n / 2); i++) hulls.push(hullPool[i % hullPool.length]);
+    if (n === 10) hulls[0] = 764;
+    return hulls;
   },
   reward(n) {
     return { credits: 8000 * n * n, grade: Math.min(4, Math.floor(n / 3)), insignia: n };

@@ -5,7 +5,7 @@ import { ANOMALIES } from '/shared/fronts.js';
 import { STATES } from '/shared/living.js';
 import { SYS, STELLARS, FACTIONS, COMMODITIES } from '/shared/galaxy.js';
 import { weaponParams, BEAM_COLORS, weaponColor, weaponLook, price } from '/shared/rules.js';
-// 1.2 map views (after Endless Sky's map modes): colour each system by trade price, services, your standing, or danger
+// map views (after Endless Sky's map modes): colour each system by trade price, services, your standing, or danger
 const lerpC = (a, b, t) =>
   `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * Math.max(0, Math.min(1, t)))).join(',')})`;
 export function tradeRatio(s, cid) {
@@ -53,7 +53,7 @@ const wormImg = new Image();
 wormImg.src = 'assets/wormhole.png';
 const sheets = new Map();
 export function sheet(H, glow) {
-  // 2.6: the sharper full-colour sheets (12 wide, with banking frames) where a hull has them
+  // the sharper full-colour sheets (12 wide, with banking frames) where a hull has them
   const k = H.id + (glow ? 'g' : '');
   if (!sheets.has(k)) {
     const im = new Image();
@@ -62,7 +62,7 @@ export function sheet(H, glow) {
   }
   return sheets.get(k);
 }
-// 2.6: banking. Ships roll into the turn: turning clockwise (right) shows the set rolled right, anticlockwise the set rolled left.
+// banking. Ships roll into the turn: turning clockwise (right) shows the set rolled right, anticlockwise the set rolled left.
 function bankOf(e, now) {
   const pa = e._pa ?? e.a,
     dtm = Math.max(1, now - (e._pt || now - 16));
@@ -157,7 +157,7 @@ const SUNS = [
   ['210,230,255', '140,180,255'],
   ['255,255,255', '200,220,255'],
 ];
-const objImgs = {}; // 2.5: rendered asteroids and loot (tools/rift_objects.py)
+const objImgs = {}; // rendered asteroids and loot (tools/rift_objects.py)
 function objImg(n) {
   let im = objImgs[n];
   if (!im) {
@@ -197,7 +197,7 @@ function rockSprite(k) {
 function decorFor(S) {
   if (decorCache.has(S.id)) return decorCache.get(S.id);
   if (S.arena) {
-    // 2.6: the Crucible has its own look: a ring of pylons in Azure and Crimson, dark crimson nebulae, no borrowed worlds
+    // the Crucible has its own look: a ring of pylons in Azure and Crimson, dark crimson nebulae, no borrowed worlds
     const r = seeded(hashStr('crucible')),
       D = {
         sun: { x: 380, y: -260, size: 110, core: '255,216,208', halo: '255,90,80', depth: 0.03 },
@@ -325,7 +325,7 @@ function decorFor(S) {
       len: 260 + r() * 260,
       depth: 0.05,
     };
-  D.bgp = []; // 2.4: background worlds painted by the planet renderer, unique to every system
+  D.bgp = []; // background worlds painted by the planet renderer, unique to every system
   const BGT = [
     ['gas giant ringed rings', 0, 360, 0.35, 0.65],
     ['gas giant storm bands', 0, 360, 0.3, 0.55],
@@ -388,7 +388,7 @@ function decorFor(S) {
       size: 900 + r() * 700,
       rot: r() * 6.283,
       depth: 0.14,
-    }; // 2.5.2: smaller, now that it is detailed
+    }; // smaller, now that it is detailed
   const fac = S.farside ? 'farside' : S.faction,
     pool = NEB_BY_FAC[fac] || [0, 1, 2, 3, 4, 5, 6, 7],
     nn = 1 + Math.floor(r() * 3) + (S.danger >= 3 ? 1 : 0);
@@ -641,7 +641,7 @@ function drawDecorFar(ctx, S, W, H, z, cx, cy, now) {
     }
   }
   for (const bp of [...D.bgp].sort((a, b) => a.depth - b.depth)) {
-    // 2.4: unique background worlds, the farthest first
+    // unique background worlds, the farthest first
     const [x, y] = farXY(bp, W, H, cx, cy, zf),
       s = bp.size * zf;
     if (x < -s * 2 || y < -s * 2 || x > W + s * 2 || y > H + s * 2) continue;
@@ -933,7 +933,7 @@ function drawDecorNear(ctx, S, W, H, z, sx, sy, now) {
       ctx.stroke();
     }
     ctx.restore();
-  } // 2.6: the Crucible's bounds
+  } // the Crucible's bounds
   for (const b of D.beacons) {
     const x = sx(b.x),
       y = sy(b.y);
@@ -959,7 +959,7 @@ function hexToRgb(h) {
   const n = parseInt(h.slice(1), 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
-// 2.5: rendered station designs (tools/rift_stations.py), chosen by who built the station and what it is
+// rendered station designs (tools/rift_stations.py), chosen by who built the station and what it is
 const stImgs = {},
   stPick = new Map();
 export function stationDesign(p) {
@@ -1126,7 +1126,7 @@ function planetImage(p) {
 
 // ------------------------------------------------------------------ effects
 export const fx = [];
-const fxImgs = {}; // 2.5: rendered effects (tools/rift_fx.py)
+const fxImgs = {}; // rendered effects (tools/rift_fx.py)
 function fxImg(n) {
   let im = fxImgs[n];
   if (!im) {
@@ -1152,7 +1152,7 @@ export function boom(x, y, size) {
       r: size * (big ? 1.35 : 1.1),
       rot: Math.random() * 6.283,
     });
-  } // 2.5: a rendered fireball
+  } // a rendered fireball
   for (let i = 0; i < n; i++) {
     const a = Math.random() * 6.283,
       v = 30 + Math.random() * (60 + size);
@@ -1218,7 +1218,7 @@ export function spark(x, y, col) {
   }
 }
 export function flash(x, y) {
-  // 2.1: a ship entering or leaving hyperspace: a hot core, a lens streak and two shock rings
+  // a ship entering or leaving hyperspace: a hot core, a lens streak and two shock rings
   fx.push({ x, y, hyper: true, life: 0.75, max: 0.75, r: 70 });
   fx.push({ x, y, ring: true, life: 0.55, max: 0.55, r: 150, c: '#bfe2ff' });
   fx.push({ x, y, ring: true, life: 0.9, max: 0.9, r: 260, c: '#7aa8ff' });
@@ -1240,7 +1240,7 @@ export function dmgNumber(x, y, n, mine) {
       f.life = f.max;
       return;
     }
-  } // 2.5: hits close together add up into one number
+  } // hits close together add up into one number
   fx.push({
     x: x + (Math.random() - 0.5) * 16,
     y,
@@ -1259,7 +1259,7 @@ export function addShake(k) {
 }
 
 // projectile drawing by look
-const glowC = new Map(); // 2.5: a soft additive glow behind every bolt, and a fading trail
+const glowC = new Map(); // a soft additive glow behind every bolt, and a fading trail
 function glowSprite(col) {
   let c = glowC.get(col);
   if (!c) {
@@ -1561,83 +1561,90 @@ function rockImage(k) {
 }
 const LOOT_COL = ['#ffd27a', '#7ad0ff', '#b0a090', '#8affc8', '#d0a0ff', '#ff5ae0']; // 5: hostile loot chest
 
-// ------------------------------------------------------------------ main draw
-let tagRects = []; // 2.6: name tags already drawn this frame, so close ships' tags stack instead of overlapping
-export function draw(G, ctx, W, H, dt, now) {
-  tagRects = [];
-  const me = G.view,
-    z = G.zoom,
-    S = SYS[G.sys];
-  let cx = (me ? me.rx : 0) + (G.lookX || 0),
-    cy = (me ? me.ry : 0) + (G.lookY || 0); // 2.1: hold right-click to look ahead
-  Object.assign(cam, { cx, cy, z, W, H }); // un-shaken camera, used for mouse picking
-  if (shake && G.opts && G.opts.shake !== false) {
-    cx += ((Math.random() - 0.5) * shake * 2) / z;
-    cy += ((Math.random() - 0.5) * shake * 2) / z;
-  }
-  const sx = (x) => (x - cx) * z + W / 2,
-    sy = (y) => (y - cy) * z + H / 2;
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, W, H);
-  if (!S) return;
-  const st = stars(S.id),
-    fcol = hexToRgb(FACTIONS[S.faction].color);
-  for (const [nx, ny, nr, k] of st.neb) {
+let tagRects = []; // name tags already drawn this frame, so close ships' tags stack instead of overlapping
+// sx/sy project world positions through the shaken camera. Layer order is visual state.
+function drawSystemBackdrop(
+  ctx,
+  system,
+  width,
+  height,
+  zoom,
+  cameraX,
+  cameraY,
+  nowMs,
+  screenX,
+  screenY,
+) {
+  const starfield = stars(system.id),
+    factionRgb = hexToRgb(FACTIONS[system.faction].color);
+  for (const [nebulaX, nebulaY, nebulaRadius, k] of starfield.neb) {
     // faint nebulae in the faction's colour
-    const x = sx(nx * 0.4 + cx * 0.6),
-      y = sy(ny * 0.4 + cy * 0.6),
-      r = nr * z * 0.6;
+    const x = screenX(nebulaX * 0.4 + cameraX * 0.6),
+      y = screenY(nebulaY * 0.4 + cameraY * 0.6),
+      r = nebulaRadius * zoom * 0.6;
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(${fcol[0]},${fcol[1]},${fcol[2]},${0.05 + k * 0.05})`);
+    g.addColorStop(
+      0,
+      `rgba(${factionRgb[0]},${factionRgb[1]},${factionRgb[2]},${0.05 + k * 0.05})`,
+    );
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  drawDecorFar(ctx, S, W, H, z, cx, cy, now); // 2.1: galaxies and gas clouds far behind the stars
-  for (const { L, depth, size } of st.layers) {
-    for (const [x0, y0, b, tw] of L) {
-      let x = (x0 - cx * depth) % 2048,
-        y = (y0 - cy * depth) % 2048;
+  drawDecorFar(ctx, system, width, height, zoom, cameraX, cameraY, nowMs); // galaxies and gas clouds far behind the stars
+  for (const { L, depth, size } of starfield.layers) {
+    for (const [x0, y0, brightness, twinklePhase] of L) {
+      let x = (x0 - cameraX * depth) % 2048,
+        y = (y0 - cameraY * depth) % 2048;
       if (x < 0) x += 2048;
       if (y < 0) y += 2048;
-      for (let ox = x; ox < W + 2048; ox += 2048)
-        for (let oy = y; oy < H + 2048; oy += 2048) {
-          if (ox > W || oy > H) continue;
-          const v = Math.round(255 * b * (0.85 + 0.15 * Math.sin(now / 700 + tw * 20)));
+      for (let ox = x; ox < width + 2048; ox += 2048)
+        for (let oy = y; oy < height + 2048; oy += 2048) {
+          if (ox > width || oy > height) continue;
+          const v = Math.round(
+            255 * brightness * (0.85 + 0.15 * Math.sin(nowMs / 700 + twinklePhase * 20)),
+          );
           ctx.fillStyle = `rgb(${v},${v},${Math.min(255, v + 20)})`;
           ctx.fillRect(ox, oy, size, size);
         }
     }
   }
-  drawDecorMid(ctx, S, W, H, z, cx, cy, now);
-  drawDecorNear(ctx, S, W, H, z, sx, sy, now); // 2.2 scenery in the system itself
-  // stellars
-  let P_;
-  for (const p of S.stellars) {
-    const x = sx(p.x),
-      y = sy(p.y);
-    if (x < -p.r * 3 * z || y < -p.r * 3 * z || x > W + p.r * 3 * z || y > H + p.r * 3 * z)
+  drawDecorMid(ctx, system, width, height, zoom, cameraX, cameraY, nowMs);
+  drawDecorNear(ctx, system, width, height, zoom, screenX, screenY, nowMs); // scenery in the system itself
+}
+
+function drawStellars(G, ctx, system, width, height, zoom, nowMs, screenX, screenY) {
+  let stellarSprite;
+  for (const stellar of system.stellars) {
+    const x = screenX(stellar.x),
+      y = screenY(stellar.y);
+    if (
+      x < -stellar.r * 3 * zoom ||
+      y < -stellar.r * 3 * zoom ||
+      x > width + stellar.r * 3 * zoom ||
+      y > height + stellar.r * 3 * zoom
+    )
       continue;
-    let label = p.name;
-    if (p.wormhole) {
+    let label = stellar.name;
+    if (stellar.wormhole) {
       // the Sol Gateway: the mod's animated vortex, slowly turning
       if (wormImg.complete && wormImg.naturalWidth) {
-        const f = Math.floor(now / 55) % 32,
+        const f = Math.floor(nowMs / 55) % 32,
           fs = wormImg.naturalWidth / 8,
-          s = p.r * 2.6 * z;
+          s = stellar.r * 2.6 * zoom;
         ctx.save();
         ctx.translate(x, y);
-        ctx.rotate(now / 9000);
+        ctx.rotate(nowMs / 9000);
         ctx.globalCompositeOperation = 'lighter';
         ctx.drawImage(wormImg, (f % 8) * fs, Math.floor(f / 8) * fs, fs, fs, -s / 2, -s / 2, s, s);
         ctx.restore();
       }
-    } else if (p.hub) {
+    } else if (stellar.hub) {
       // the Quantum Station hub turns slowly; neighbouring frames are cross-faded so the rotation is smooth
       if (hubImg.complete && hubImg.naturalWidth) {
         const fs = hubImg.naturalWidth / 6,
-          s = p.r * 2.13 * z,
-          t = (now / 1000 / HUB_PERIOD) * HUB_FRAMES,
+          s = stellar.r * 2.13 * zoom,
+          t = (nowMs / 1000 / HUB_PERIOD) * HUB_FRAMES,
           f0 = Math.floor(t) % HUB_FRAMES,
           f1 = (f0 + 1) % HUB_FRAMES,
           k = t - Math.floor(t);
@@ -1666,12 +1673,12 @@ export function draw(G, ctx, W, H, dt, now) {
         );
         ctx.globalAlpha = 1;
       }
-    } else if (p.site) {
-      const st = G.sites && G.sites[p.id],
+    } else if (stellar.site) {
+      const st = G.sites && G.sites[stellar.id],
         ops = st ? st.ops : 0,
         im = stationImgs[ops];
       if (im.complete && im.naturalWidth) {
-        const s = p.r * (2.2 + ops * 0.25) * z;
+        const s = stellar.r * (2.2 + ops * 0.25) * zoom;
         ctx.globalCompositeOperation = 'lighter';
         ctx.drawImage(im, x - s / 2, y - s / 2, s, s);
         ctx.globalCompositeOperation = 'source-over';
@@ -1679,51 +1686,76 @@ export function draw(G, ctx, W, H, dt, now) {
       label = st
         ? `${st.owner}'s Personal Station · Ops ${ops}`
         : 'Derelict Station Hull (unclaimed)';
-    } else if ((p.kind === 'planet' || p.kind === 'moon') && (P_ = planetSprite(p, now))) {
-      const w = P_.S * P_.scale * z;
-      ctx.drawImage(P_.canvas, x - w / 2, y - w / 2, w, w);
-    } // 1.0.1: procedural planets (old art until built)
-    else if (p.kind === 'station' && (P_ = stationSprite(p))) {
-      const s2 = p.r * 2.5 * z;
-      ctx.drawImage(P_, x - s2 / 2, y - s2 / 2, s2, s2);
-    } // 2.5: rendered stations
+    } else if (
+      (stellar.kind === 'planet' || stellar.kind === 'moon') &&
+      (stellarSprite = planetSprite(stellar, nowMs))
+    ) {
+      const w = stellarSprite.S * stellarSprite.scale * zoom;
+      ctx.drawImage(stellarSprite.canvas, x - w / 2, y - w / 2, w, w);
+    } // procedural planets (old art until built)
+    else if (stellar.kind === 'station' && (stellarSprite = stationSprite(stellar))) {
+      const s2 = stellar.r * 2.5 * zoom;
+      ctx.drawImage(stellarSprite, x - s2 / 2, y - s2 / 2, s2, s2);
+    } // rendered stations
     else {
-      const im = planetImage(p);
+      const im = planetImage(stellar);
       ctx.drawImage(
         im,
-        x - (im.width * z) / 2,
-        y - (im.height * z) / 2,
-        im.width * z,
-        im.height * z,
+        x - (im.width * zoom) / 2,
+        y - (im.height * zoom) / 2,
+        im.width * zoom,
+        im.height * zoom,
       );
     }
-    if (G.hoverStellar === p.id && G.navStellar !== p.id) {
+    if (G.hoverStellar === stellar.id && G.navStellar !== stellar.id) {
       ctx.strokeStyle = 'rgba(255,255,255,.25)';
       ctx.setLineDash([3, 6]);
       ctx.beginPath();
-      ctx.arc(x, y, p.r * z * 1.15 + 8, 0, Math.PI * 2);
+      ctx.arc(x, y, stellar.r * zoom * 1.15 + 8, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
-    if (G.navStellar === p.id) {
+    if (G.navStellar === stellar.id) {
       ctx.strokeStyle = 'rgba(120,200,255,.6)';
       ctx.setLineDash([6, 6]);
       ctx.beginPath();
-      ctx.arc(x, y, p.r * z * 1.15 + 8, 0, Math.PI * 2);
+      ctx.arc(x, y, stellar.r * zoom * 1.15 + 8, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
     }
     ctx.fillStyle = 'rgba(210,220,240,.8)';
     ctx.font = '13px Tahoma';
     ctx.textAlign = 'center';
-    ctx.fillText(label, x, y + p.r * z + (p.hub ? -p.r * z * 0.25 : 18));
-    const colOwner = G.world && G.world.colonies && G.world.colonies[p.id];
+    ctx.fillText(label, x, y + stellar.r * zoom + (stellar.hub ? -stellar.r * zoom * 0.25 : 18));
+    const colOwner = G.world && G.world.colonies && G.world.colonies[stellar.id];
     if (colOwner) {
       ctx.fillStyle = '#ffd27a';
       ctx.font = '12px Tahoma';
-      ctx.fillText(`${colOwner}'s colony`, x, y + p.r * z + 34);
+      ctx.fillText(`${colOwner}'s colony`, x, y + stellar.r * zoom + 34);
     }
   }
+}
+
+// ------------------------------------------------------------------ main draw
+export function draw(G, ctx, W, H, dt, now) {
+  tagRects = [];
+  const me = G.view,
+    z = G.zoom,
+    S = SYS[G.sys];
+  let cx = (me ? me.rx : 0) + (G.lookX || 0),
+    cy = (me ? me.ry : 0) + (G.lookY || 0); // hold right-click to look ahead
+  Object.assign(cam, { cx, cy, z, W, H }); // un-shaken camera, used for mouse picking
+  if (shake && G.opts && G.opts.shake !== false) {
+    cx += ((Math.random() - 0.5) * shake * 2) / z;
+    cy += ((Math.random() - 0.5) * shake * 2) / z;
+  }
+  const sx = (x) => (x - cx) * z + W / 2,
+    sy = (y) => (y - cy) * z + H / 2;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  if (!S) return;
+  drawSystemBackdrop(ctx, S, W, H, z, cx, cy, now, sx, sy);
+  drawStellars(G, ctx, S, W, H, z, now, sx, sy);
   // asteroids, gas pockets and crystal clusters
   for (const k of G.rocks || []) {
     if (!k.hp) continue;
@@ -1733,7 +1765,7 @@ export function draw(G, ctx, W, H, dt, now) {
     if (x < -R * 2 || y < -R * 2 || x > W + R * 2 || y > H + R * 2) continue;
     const ri =
         k.ore !== 'gas' && objImg(k.ore === 'shards' ? 'crys' + (k.id % 4) : 'rock' + (k.id % 10)),
-      rr = ri && ri.complete && ri.naturalWidth; // 2.5: rendered asteroids
+      rr = ri && ri.complete && ri.naturalWidth; // rendered asteroids
     const im = rr ? ri : rockImage(k),
       s2 = rr ? k.r * 2.35 * z : im.width * z;
     ctx.save();
@@ -1766,7 +1798,7 @@ export function draw(G, ctx, W, H, dt, now) {
     ctx.font = '12px Tahoma';
     ctx.textAlign = 'center';
     ctx.fillText('SALVAGE', x, y - 160 * z - 6);
-  } // 2.4 quest salvage
+  } // quest salvage
   // survey points for an active survey job here
   for (const [px_, py_] of surveyPoints(G)) {
     const x = sx(px_),
@@ -1787,7 +1819,7 @@ export function draw(G, ctx, W, H, dt, now) {
   for (const l of G.loot) {
     const x = sx(l.x),
       y = sy(l.y),
-      li = objImg('loot' + Math.min(5, l.kind || 0)); // 2.5: rendered loot
+      li = objImg('loot' + Math.min(5, l.kind || 0)); // rendered loot
     if (li.complete && li.naturalWidth) {
       const q = (l.kind === 5 ? 30 + Math.sin(now / 200) * 2 : 18) * Math.max(0.6, z);
       ctx.save();
@@ -1900,7 +1932,7 @@ export function draw(G, ctx, W, H, dt, now) {
       f.y += f.vy * dt;
     }
     if (f.hyper) {
-      // 2.1 hyperspace flash
+      // hyperspace flash
       const e = 1 - k,
         R = f.r * z * (0.6 + e * 0.8),
         g = ctx.createRadialGradient(x, y, 0, x, y, R);
@@ -2216,7 +2248,7 @@ function hudOverlay(G, ctx, W, H, now, sx, sy, me) {
       }
     }
   for (const [x, y] of salvagePoints(G))
-    edgeArrow(ctx, W, H, sx(x), sy(y), '#ffc85a', 'Salvage', Math.hypot(x - me.rx, y - me.ry)); // 2.4
+    edgeArrow(ctx, W, H, sx(x), sy(y), '#ffc85a', 'Salvage', Math.hypot(x - me.rx, y - me.ry));
   if (G.navStellar && !seen.has(G.navStellar)) {
     const p = S.stellars.find((x) => x.id === G.navStellar);
     if (p)
@@ -2232,7 +2264,7 @@ function hudOverlay(G, ctx, W, H, now, sx, sy, me) {
       );
   }
   if (Math.hypot(G.lookX || 0, G.lookY || 0) > 50)
-    edgeArrow(ctx, W, H, sx(me.rx), sy(me.ry), '#9fe0ff', 'You', Math.hypot(G.lookX, G.lookY)); // 2.1 look-ahead
+    edgeArrow(ctx, W, H, sx(me.rx), sy(me.ry), '#9fe0ff', 'You', Math.hypot(G.lookX, G.lookY)); // look-ahead
   const T = G.target && G.ents.get(G.target);
   if (T)
     edgeArrow(
@@ -2245,7 +2277,7 @@ function hudOverlay(G, ctx, W, H, now, sx, sy, me) {
       (T.name || (G.A.ships[T.hull] || {}).name || 'target').split(' · ')[0],
       Math.hypot(T.rx - me.rx, T.ry - me.ry),
     );
-  // 2.1 hyperspace: spool rings, star streaks along your heading, a white bloom; arrival plays it in reverse with a shockwave
+  // hyperspace: spool rings, star streaks along your heading, a white bloom; arrival plays it in reverse with a shockwave
   if (G._jumping || me.fl & 8) hyperOut(G, ctx, W, H, now, sx(me.rx), sy(me.ry), me.a);
   if (G._arriveT && now - G._arriveT < 1100)
     hyperIn(G, ctx, W, H, now - G._arriveT, sx(me.rx), sy(me.ry), me.a);
@@ -2286,7 +2318,7 @@ function drawShip(G, ctx, e, x, y, z, now) {
     srcY = Math.floor(fr / cols) * fs;
   const im = sheet(H);
   if (e.fl & 8 && im.complete && im.naturalWidth) {
-    // 2.1: a ship in hyperspace leaves a stretched, blue-shifted ghost trail
+    // a ship in hyperspace leaves a stretched, blue-shifted ghost trail
     const ux = Math.sin(e.a),
       uy = -Math.cos(e.a);
     ctx.globalCompositeOperation = 'lighter';
@@ -2344,7 +2376,7 @@ function drawShip(G, ctx, e, x, y, z, now) {
     e.rx != null &&
     Math.random() < ((50 - e.ar) / 50) * 0.4
   ) {
-    // 2.4: damaged ships trail smoke, and badly damaged ones burn
+    // damaged ships trail smoke, and badly damaged ones burn
     const ox = (Math.random() - 0.5) * sz * 0.4,
       oy = (Math.random() - 0.5) * sz * 0.4;
     fx.push({
@@ -2387,7 +2419,7 @@ function drawShip(G, ctx, e, x, y, z, now) {
   const tgt = G.target === e.id;
   const ally = G.isAlly && G.isAlly(e);
   if (ally && !tgt) {
-    // 2.6: Armada members and their wingmates carry a green marker
+    // Armada members and their wingmates carry a green marker
     const r = w * 0.55 + 5;
     ctx.strokeStyle = G.pal.ally;
     ctx.globalAlpha = 0.75;
@@ -2426,7 +2458,7 @@ function drawShip(G, ctx, e, x, y, z, now) {
           : '#9cf'
         : e.fl & 64
           ? '#f2c66a'
-          : '#ddd'; // 1.1: rival captains carry gold name tags
+          : '#ddd'; // rival captains carry gold name tags
     ctx.font = '13px Tahoma';
     ctx.textAlign = 'center';
     const tw = ctx.measureText(e.name).width;
@@ -2578,7 +2610,7 @@ export function galaxy(G, ctx, opts = {}) {
       G.mapView.prevFit = f.fit;
     }
     V = G.mapView;
-  } // 1.0.1: keep the zoom when the canvas is resized
+  } // keep the zoom when the canvas is resized
   else {
     const here = SYS[G.sys] || SYS_LIST[0];
     V = { cx: here.x, cy: here.y, k: Math.min(W, H) / 560 };
@@ -2659,7 +2691,7 @@ export function galaxy(G, ctx, opts = {}) {
         : null;
   const allySys = {};
   for (const m of (G.you && G.you.armada && G.you.armada.members) || [])
-    if (m.sysId && m.name !== G.myName) (allySys[m.sysId] = allySys[m.sysId] || []).push(m.name); // 2.6: where your Armada is
+    if (m.sysId && m.name !== G.myName) (allySys[m.sysId] = allySys[m.sysId] || []).push(m.name); // where your Armada is
   for (const s of SYS_LIST) {
     const [x, y] = P(s);
     if (!on(x, y)) continue;
@@ -2694,7 +2726,7 @@ export function galaxy(G, ctx, opts = {}) {
       ctx.fill();
     }
     if (myStSys === s.id) {
-      // 2.5.2: your Personal Station: a gold station mark with its Ops level
+      // your Personal Station: a gold station mark with its Ops level
       const q = r + 9,
         pulse2 = 0.6 + 0.4 * Math.sin(performance.now() / 500);
       ctx.strokeStyle = `rgba(255,210,110,${0.75 + 0.25 * pulse2})`;
@@ -2768,7 +2800,7 @@ export function galaxy(G, ctx, opts = {}) {
       ctx.fillText(s.name, x, y - r - 5);
     }
   }
-  // 0.6 overlays: the invasion, anomalies (2.6: territory claims removed)
+  // overlays: the invasion, anomalies (2.6: territory claims removed)
   const Wd = G.world || {},
     pulse = 0.5 + 0.5 * Math.sin(performance.now() / 300);
   for (const [sid, an] of Object.entries(Wd.anomalies || {})) {
@@ -2787,7 +2819,7 @@ export function galaxy(G, ctx, opts = {}) {
       X = STATES[st.k];
     if (!S_ || !X) continue;
     const [x, y] = P(S_);
-    if (!on(x, y)) continue; // 2.4: system states
+    if (!on(x, y)) continue; // system states
     ctx.strokeStyle = X.color + 'aa';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
@@ -2813,7 +2845,7 @@ export function galaxy(G, ctx, opts = {}) {
       ctx.fillText('INVASION', x, y + 30);
     }
   }
-  // 1.0.1: active mission targets (gold diamond and ring; the main story is brighter)
+  // active mission targets (gold diamond and ring; the main story is brighter)
   for (const t of missionTargets(G)) {
     const S_ = t.sys && SYS[t.sys];
     if (!S_) continue;
@@ -2851,7 +2883,7 @@ export function galaxy(G, ctx, opts = {}) {
       ctx.fillText('beyond the Gateway', x - 20 * V.k, y + 50 * V.k + 14);
     }
   }
-  if (big && G.mapLegend === false) return; // 2.4: the legend can be hidden
+  if (big && G.mapLegend === false) return; // the legend can be hidden
   if (big) {
     ctx.fillStyle = 'rgba(2,3,10,.82)';
     ctx.fillRect(0, H - (G.mapMode && G.mapMode !== 'factions' ? 26 : 42), W, 42);
@@ -2940,7 +2972,7 @@ export function galaxy(G, ctx, opts = {}) {
     }
     ctx.fillStyle = '#ff5a40';
     ctx.fillText('◯ invasion', lx, ly);
-    lx += 70; // 2.4: no fleet claims in solo
+    lx += 70; // no fleet claims in solo
     for (const A_ of Object.values(ANOMALIES)) {
       ctx.fillStyle = A_.color;
       ctx.fillText(`${A_.icon} ${A_.name}`, lx, ly);

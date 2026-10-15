@@ -1,4 +1,4 @@
-// 1.0.3: the in-HUD radio plays a station's own audio stream in an <audio> element, so the game's mixer controls its
+// the in-HUD radio plays a station's own audio stream in an <audio> element, so the game's mixer controls its
 // volume and a click starts it straight away. The display is an in-game "on air" panel with the current song.
 // If a station only offers streams this browser can't play, it falls back to the iHeart embed (whose volume is its own).
 const esc = (s) =>
@@ -44,7 +44,7 @@ function panel(state, s, extra = '') {
       const p = r.value * 100;
       r.style.background = `linear-gradient(90deg,#e0362a ${p}%,#3a0808 ${p}%)`;
     }
-  }; // 2.1: red fill
+  }; // red fill
   if (r) {
     paint();
     r.oninput = () => {

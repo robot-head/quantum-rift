@@ -79,7 +79,7 @@ export function initUI(g, sender) {
       localStorage.setItem('rift.legend', G.mapLegend ? '1' : '0');
     } catch {}
     drawGMap();
-  }); // 2.4
+  });
   document
     .querySelectorAll('#ctabs button')
     .forEach((b) => (b.onclick = () => ctab(b.dataset.tab)));
@@ -92,12 +92,12 @@ export function initUI(g, sender) {
       G.dmWith = b.dataset.dm;
       refreshCompanion();
     }
-  }); // 2.6
+  });
   $('tg-acts').addEventListener('click', (e) => {
     const b = e.target.closest('[data-tga]');
     if (!b) return;
     const n = $('tg-acts').dataset.n;
-    if (!n) return; // 2.6: invite, duel, message or befriend the captain you targeted
+    if (!n) return; // invite, duel, message or befriend the captain you targeted
     if (b.dataset.tga === 'invite') send({ t: 'armada', op: 'invite', name: n });
     else if (b.dataset.tga === 'friend') send({ t: 'social', op: 'add', name: n });
     else if (b.dataset.tga === 'duel')
@@ -120,7 +120,7 @@ export function initUI(g, sender) {
       plot(b.dataset.plot);
       toast(`Course plotted to ${SYS[b.dataset.plot].name}. Press J in space to jump.`);
     }
-  }); // 2.4 $('dockchips').addEventListener('click', onAct); $('stview').addEventListener('click', onAct); $('opsview').addEventListener('click', onAct); $('opsview').addEventListener('click', (e) => { const b = e.target.closest('[data-plot]'); if (b) { plot(b.dataset.plot); openMap(b.dataset.plot); } });   // 2.4
+  });
   $('landbody').addEventListener('change', (e) => {
     if (e.target.id === 'ysort') {
       G.ysort = e.target.value;
@@ -129,9 +129,9 @@ export function initUI(g, sender) {
       G.ofit = e.target.checked;
       renderLanded();
     }
-  }); // 2.5.2: shipyard sort, outfitter filter
+  }); // shipyard sort, outfitter filter
   $('landbody').addEventListener('change', (e) => {
-    // 2.1: dock pickers
+    // dock pickers
     const dp = e.target.closest('select.dpick');
     if (dp) {
       send({
@@ -175,7 +175,7 @@ export function initUI(g, sender) {
           () => send({ t: 'abandon', id: m.id }),
         );
     }
-  }); // 2.0.3
+  });
   // galaxy map: drag to pan, wheel to zoom around the cursor, click a system to plot a course
   const gc = $('gcanvas'),
     mp = (e) => {
@@ -244,7 +244,7 @@ export function initUI(g, sender) {
       toast(
         'You have no Personal Station yet. Claim a derelict station hull (the purple diamonds) to build one.',
       );
-  }; // 2.5.2
+  };
   $('gsearch').oninput = searchMap;
   $('gsearch').onkeydown = (e) => {
     e.stopPropagation();
@@ -295,7 +295,7 @@ export function initUI(g, sender) {
   };
   renderRadio();
 }
-// 2.0: toasts pick a sound from what they say
+// toasts pick a sound from what they say
 const TOAST_SND = [
   [/hired guns|raid|invasion|closing in|under attack|price on your head|ambush/i, 'alert'],
   [
@@ -308,7 +308,7 @@ const TOAST_SND = [
     'error',
   ],
 ];
-// 2.5: which rendered landing picture (tools/rift_landscapes.py) a world shows
+// which rendered landing picture (tools/rift_landscapes.py) a world shows
 const LAND_SCENES = {
   terran: ['terran_city1', 'terran_city2', 'terran_wild1', 'terran_wild2', 'jungle1', 'jungle2'],
   city: ['city1', 'city2', 'terran_city1'],
@@ -335,7 +335,7 @@ function landScene(p) {
   const L = LAND_SCENES[t] || LAND_SCENES.barren;
   return 'l_' + L[h % L.length];
 }
-// 2.5: a styled confirmation dialog in place of the browser's own confirm box
+// a styled confirmation dialog in place of the browser's own confirm box
 export function ask(msg, yes, opts = {}) {
   const box = document.getElementById('askbox');
   document.getElementById('askx').textContent = msg;
@@ -380,7 +380,7 @@ export function chatLine(m) {
     d.className = 'sys';
     d.textContent = m.msg;
   } else
-    d.innerHTML = `<b${m.ch === 'armada' ? ' class="armada"' : ''}${!G.solo && m.from !== G.myName ? ` data-dm="${esc(m.from)}" title="Message ${esc(m.from)}"` : ''}>${m.ch === 'armada' ? '[Armada] ' : ''}${esc(m.from)}${m.ch === 'sys' ? ' (system)' : ''}:</b> ${esc(m.msg)}`; // 2.6: click a name to message them
+    d.innerHTML = `<b${m.ch === 'armada' ? ' class="armada"' : ''}${!G.solo && m.from !== G.myName ? ` data-dm="${esc(m.from)}" title="Message ${esc(m.from)}"` : ''}>${m.ch === 'armada' ? '[Armada] ' : ''}${esc(m.from)}${m.ch === 'sys' ? ' (system)' : ''}:</b> ${esc(m.msg)}`; // click a name to message them
   $('chatlog').appendChild(d);
   while ($('chatlog').children.length > 40) $('chatlog').firstChild.remove();
 }
@@ -396,7 +396,7 @@ export function hud() {
     ar = me ? me.armor : st.armor,
     fu = me ? me.fuel : y.fuel;
   $('v-sh').textContent = `${Math.round(sh)} / ${Math.round(st.shield)}`;
-  $('v-ar').textContent = `${Math.round(ar)} / ${Math.round(st.armor)}`; // 2.0
+  $('v-ar').textContent = `${Math.round(ar)} / ${Math.round(st.armor)}`;
   $('b-sh').style.width = (100 * sh) / Math.max(1, st.shield) + '%';
   $('b-ar').style.width = (100 * ar) / Math.max(1, st.armor) + '%';
   $('b-fu').style.width = (100 * fu) / Math.max(1, st.fuel) + '%';
@@ -408,12 +408,12 @@ export function hud() {
     f.textContent = (dlt > 0 ? '+' : '−') + credits(Math.abs(dlt));
     $('cr').parentElement.appendChild(f);
     setTimeout(() => f.remove(), 1600);
-  } // 2.0
+  }
   G._crSeen = y.credits;
   $('spd').textContent = me
     ? `SPD ${Math.round(Math.hypot(me.vx, me.vy) / 0.45)} / ${Math.round(st.maxSpeed / 0.45)}`
     : '';
-  $('spd').title = 'Speed: current / top'; // 2.0.3: labelled
+  $('spd').title = 'Speed: current / top'; // labelled
   {
     const S = SYS[G.sys],
       on = !!(
@@ -423,7 +423,7 @@ export function hud() {
         !S.farside &&
         !['umbral', 'deep'].includes(S.faction)
       ),
-      el = $('prot'); // 2.0.3 newcomer protection badge
+      el = $('prot'); // newcomer protection badge
     {
       const dl = dockLine(G),
         r = $('dockrow');
@@ -434,9 +434,9 @@ export function hud() {
           r.innerHTML = dl;
         }
       }
-    } // 2.1
+    }
     if (el) {
-      el.classList.toggle('hidden', !y.newcomer || !!(S && S.arena)); // 2.6: meaningless in the Crucible
+      el.classList.toggle('hidden', !y.newcomer || !!(S && S.arena)); // meaningless in the Crucible
       el.classList.toggle('off', !on);
       el.textContent = on ? '🛡 NEWCOMER PROTECTION' : '🛡 PROTECTION: NOT IN LAWLESS SPACE';
     }
@@ -449,7 +449,7 @@ export function hud() {
     (() => {
       const st = stateOfSys(G.sys);
       return st ? ' · ' + STATES[st.k].icon + ' ' + STATES[st.k].name.toUpperCase() : '';
-    })(); // 2.4
+    })();
   const t = G.target ? G.ents.get(G.target) : null;
   if (t) {
     const H = G.A.ships[t.hull];
@@ -492,7 +492,7 @@ export function hud() {
           t.name &&
           t.name !== G.myName,
         ally = cap && G.isAlly && G.isAlly(t),
-        k = cap ? t.name + '|' + ally : ''; // 2.6: act on a captain you can see
+        k = cap ? t.name + '|' + ally : ''; // act on a captain you can see
       const el = $('tg-acts');
       if (el._k !== k) {
         el._k = k;
@@ -514,7 +514,7 @@ export function hud() {
     $('tg-bars').style.visibility = 'hidden';
   }
   const fj = Math.floor(((G.view && G.view.fuel) ?? y.fuel ?? 0) / 100),
-    shortFuel = G.route && G.route.length > fj; // 1.0.3: warn when the route is longer than your fuel
+    shortFuel = G.route && G.route.length > fj; // warn when the route is longer than your fuel
   $('navto').classList.toggle('warnf', !!shortFuel);
   $('navto').textContent =
     G.route && G.route.length
@@ -528,7 +528,7 @@ export function hud() {
       y.docks.list[y.docks.active] &&
       y.docks.list[y.docks.active].wings.some(Boolean)
     ) ||
-    (G.order && G.order !== 'gather'); // 1.1: current fleet order
+    (G.order && G.order !== 'gather'); // current fleet order
   $('fleetrow').classList.toggle('hidden', !hasFleet);
   if (hasFleet)
     $('fleetord').textContent = {
@@ -574,7 +574,7 @@ export function drawMini() {
       $('mlist').innerHTML = h;
     }
   }
-} // 1.0.1: the MISSIONS tab replaced the minimap
+} // the MISSIONS tab replaced the minimap
 // radio (iHeartRadio, as in the Quantum Companion)
 function slug(n) {
   return (
@@ -647,7 +647,7 @@ function renderRadio() {
             renderRadio();
             return;
           }
-          playStation(s, $('rnow'), slug(s.name)); // 1.0.3: plays in-game (mixer volume, auto-play), with an on-air text panel
+          playStation(s, $('rnow'), slug(s.name)); // plays in-game (mixer volume, auto-play), with an on-air text panel
         }),
     );
 }
@@ -764,7 +764,7 @@ const STATMAX = {
   space: 320,
 };
 function statLines(s, cmp) {
-  // 2.4: cmp = the hull you fly, to show the difference
+  // cmp = the hull you fly, to show the difference
   const fmt = (k, v) => (k === 'fuel' ? Math.floor(v / 100) + 'j' : v);
   const delta = (k) => {
     if (!cmp || cmp === s) return '';
@@ -817,7 +817,7 @@ const STATION_SECTIONS = [
   ['hangar', 'SHUTTLES', 2],
   ['defense', 'DEFENSE', 2],
   ['specialists', 'SPECIALISTS', 0],
-]; // 2.6: REFITS removed
+]; // REFITS removed
 function stationHtml(interactive) {
   const y = G.you,
     S = y.station,
@@ -865,7 +865,7 @@ function stationHtml(interactive) {
         h += `<div class="kv"><span>Docks</span><span>${y.docks ? `${y.docks.count} docks · ${y.dock.length} stored ship${y.dock.length === 1 ? '' : 's'}` : y.dock.length + ' stored'}</span></div>`;
       h += materialsHtml(G, false);
       if (interactive && S.site && here && here.own) {
-        // 2.6: warp the station to another hull
+        // warp the station to another hull
         const free = SITES.filter((s_) => !(G.sites && G.sites[s_.id]) && s_.id !== S.site),
           cost = relocateCost(S.ops),
           wait = (S.relocT || 0) + RELOCATE.cooldownH * 3600000 - now;
@@ -900,7 +900,7 @@ function stationHtml(interactive) {
       break;
     case 'docks':
       h += docksHtml(G, interactive);
-      break; // 2.1
+      break;
     case 'hangar':
       h += hangarHtml(G, interactive);
       break;
@@ -970,7 +970,7 @@ export function showLanded() {
     ? `url(assets/land/${10951 + Math.min(5, site.ops)}.jpg)`
     : p.land && p.land !== 'earth'
       ? `url(assets/land/${{ 10957: 'l_inalumen', 10958: 'l_threshold' }[p.land] || p.land}.jpg)`
-      : `url(assets/land/${landScene(p)}.jpg), radial-gradient(circle at 40% 40%, ${p.color}, #000 75%)`; // 2.5: rendered landing pictures
+      : `url(assets/land/${landScene(p)}.jpg), radial-gradient(circle at 40% 40%, ${p.color}, #000 75%)`; // rendered landing pictures
   const avail = TABS.filter(
     ([k]) =>
       (k === 'blackmarket' && L.blackmarket) ||
@@ -987,7 +987,7 @@ export function showLanded() {
           (G.you && (G.you.missions.length || (G.you.story && G.you.story.active))))) ||
       (k === 'station' && site && (site.own || !site.owner)) ||
       k === 'crew' ||
-      (!G.solo && (k === 'arena' || (k === 'exchange' && L.exchange))) || // 2.4: multiplayer tabs hidden in solo
+      (!G.solo && (k === 'arena' || (k === 'exchange' && L.exchange))) || // multiplayer tabs hidden in solo
       (k === 'colony' && L.colony),
   );
   G.lastTab = G.lastTab || {};
@@ -995,7 +995,7 @@ export function showLanded() {
     G._landedAt = L.stellar;
     if (G.lastTab[L.stellar] && avail.some(([k]) => k === G.lastTab[L.stellar]))
       G.ltab = G.lastTab[L.stellar];
-  } // 2.0: each world remembers your last tab
+  } // each world remembers your last tab
   if (!avail.some(([k]) => k === G.ltab))
     G.ltab = site && (site.own || !site.owner) ? 'station' : L.community ? 'community' : 'overview';
   G.lastTab[L.stellar] = G.ltab;
@@ -1037,7 +1037,7 @@ export function renderLanded() {
     p = STELLARS[L.stellar],
     body = $('landbody'),
     st = y.shipStats;
-  $('dockchips').innerHTML = dockChips(G, !!(G.landed && G.landed.site && G.landed.site.own)); // 2.1
+  $('dockchips').innerHTML = dockChips(G, !!(G.landed && G.landed.site && G.landed.site.own));
   $('landcr').textContent = credits(y.credits) + ' credits';
   $('landcargo').textContent = y.shipless
     ? 'No active ship: choose one to depart'
@@ -1050,13 +1050,13 @@ export function renderLanded() {
   switch (G.ltab) {
     case 'overview': {
       const fac = SYS[p.system].faction;
-      h += stateCard(p.system); // 2.4
-      h += barCard(L); // 2.4: the contact at the bar, and what this world trades in
+      h += stateCard(p.system);
+      h += barCard(L); // the contact at the bar, and what this world trades in
       if (L.news && L.news.length)
         h += `<div class="newsbox"><div class="sect" style="margin-top:0">SPACEPORT NEWS</div>${L.news
           .slice(0, 4)
           .map((n) => `<div class="newsit">${esc(n)}</div>`)
-          .join('')}</div>`; // 1.1
+          .join('')}</div>`;
       if (y.shipless)
         h += `<div class="noship"><b>NO ACTIVE SHIP</b><div>You can't depart until you choose a ship. ${y.dock && y.dock.length ? 'Open STATION, then DOCKS, and choose a lead ship for your active dock.' : 'Buy one at a SHIPYARD.'}</div><div>${y.dock && y.dock.length ? '<button class="btn sm" data-act="gotodock">OPEN DRYDOCK</button> ' : ''}${L.yard ? '<button class="btn sm" data-act="ltab" data-t="yard">SHIPYARD</button>' : ''}</div></div>`;
       if (!y.shipless)
@@ -1105,7 +1105,7 @@ export function renderLanded() {
         }${(() => {
           const D = y.docks,
             room = D && D.cap > D.stored.length,
-            wo = WING_ONLY.includes(s.id); // 2.1: buy to fly, or buy into your hangar
+            wo = WING_ONLY.includes(s.id); // buy to fly, or buy into your hangar
           const toH =
             y.station && y.station.site
               ? `<button class="btn" data-act="buyhangar" data-h="${s.id}"${room ? '' : ' disabled title="Your hangar is full"'}>BUY TO HANGAR${D ? ` (${D.stored.length}/${D.cap})` : ''}</button>`
@@ -1149,7 +1149,7 @@ export function renderLanded() {
           ['defense', 'DEFENSE'],
           ['engines', 'ENGINES'],
           ['utility', 'UTILITY'],
-        ]; // 2.4: outfitter categories
+        ]; // outfitter categories
       const fits = (o) => {
         if (o.eff.ammo)
           return (
@@ -1159,7 +1159,7 @@ export function renderLanded() {
         if ((o.mass || 0) > st.free) return false;
         if (o.eff.weapon) return o.turret ? st.turrets < st.maxTurrets : st.guns < st.maxGuns;
         return true;
-      }; // 2.5.2
+      };
       const list = L.outfitter.filter(
         (id) => (cat === 'all' || outfitCat(O[id]) === cat) && (!G.ofit || fits(O[id])),
       );
@@ -1178,11 +1178,11 @@ export function renderLanded() {
               ? (G.ammo[o.eff.ammo] ?? y.ship.ammo[o.eff.ammo] ?? 0)
               : y.ship.outfits[id] || 0;
           const W = o.eff.weapon && G.A.weapons[o.eff.weapon],
-            wp = W ? weaponParams(W) : null; // 1.0.3: guns show damage and range; ammo says if you have a launcher
+            wp = W ? weaponParams(W) : null; // guns show damage and range; ammo says if you have a launcher
           const hasLauncher =
             o.eff.ammo &&
             ((st.weapons && st.weapons[o.eff.ammo]) ||
-              Object.keys(y.ship.outfits).some((k) => O[k] && O[k].eff.weapon === o.eff.ammo)); // 2.0.3: fixed launchers count too
+              Object.keys(y.ship.outfits).some((k) => O[k] && O[k].eff.weapon === o.eff.ammo)); // fixed launchers count too
           const eff = W
             ? `${W.type}${o.turret ? ' turret' : ''} · ${Math.round((W.dmgA || 0) + (W.dmgS || 0))} dmg · ${Math.round(wp.range)} range`
             : o.eff.ammo
@@ -1218,7 +1218,7 @@ export function renderLanded() {
       h = '';
       if (SO)
         h += `<div class="card story" style="cursor:default"><div class="storytag">MAIN STORY</div><div class="t">${esc(SO.title)}</div><div>${esc(SO.brief)}</div>${SO.locked ? `<div class="dim small">${esc(SO.locked)}</div>` : `<div><button class="btn sm" data-act="storyopen">READ</button></div>`}</div>`;
-      h += arcCardsHtml(G); // 1.2 faction arcs
+      h += arcCardsHtml(G); // faction arcs
       if (SA)
         h += `<div class="card story" style="cursor:default"><div class="storytag">MAIN STORY · IN PROGRESS</div><div class="t">${esc(SA.title)}</div><div>${esc(SA.brief)}</div>${SA.ready ? '<div style="color:var(--ok)">Done: return to collect.</div>' : SA.got ? `<div class="dim small">${SA.got} so far</div>` : ''}</div>`;
       h +=
@@ -1252,7 +1252,7 @@ export function renderLanded() {
       break;
     case 'blackmarket':
       h = blackMarketHtml(G);
-      break; // 1.2
+      break;
     case 'bank':
       h = bankHtml(G);
       break;
@@ -1282,7 +1282,7 @@ export function renderLanded() {
   }
   body.innerHTML = h;
 }
-// 2.4: a system's state as a line of text, and as a card
+// a system's state as a line of text, and as a card
 export function stateOfSys(sys) {
   const st = G.world && G.world.states && G.world.states[sys];
   return st && st.until > Date.now() && STATES[st.k] ? st : null;
@@ -1311,14 +1311,14 @@ function stateCard(sys) {
     : '';
   return `<div class="statecard" style="border-color:${X.color}"><div><b style="color:${X.color}">${X.icon} ${X.name.toUpperCase()}</b> <span class="dim small">· about ${left} min left</span></div><div class="small">${esc(X.desc)}</div><div class="small dim">${prices}</div>${goal ? `<div class="small">${goal}${st.need ? ` <b>${st.got} / ${st.need}</b>` : ''}</div><div class="sbar"><i style="width:${Math.round((100 * st.got) / Math.max(1, st.need))}%;background:${X.color}"></i></div>` : ''}</div>`;
 }
-// 1.0.3: how far a job is and whether its cargo fits your hold
+// how far a job is and whether its cargo fits your hold
 function holdFree(y) {
   const mc = (y.missions || [])
     .filter((m) => m.type === 'cargo' || m.type === 'smuggle')
     .reduce((a, m) => a + (m.qty || 0), 0);
   return y.shipStats.cargo - y.cargoUsed - mc;
 }
-// 2.4: the bar contact's greeting and rumour, and the world's trade specialties
+// the bar contact's greeting and rumour, and the world's trade specialties
 function barCard(L) {
   let h = '';
   if (L.contact) {
@@ -1340,7 +1340,7 @@ function barCard(L) {
   }
   return h;
 }
-// 2.5.2: warn when a story will ask for more hold space or bunks than the ship you fly
+// warn when a story will ask for more hold space or bunks than the ship you fly
 function questNeeds(o) {
   const y = G.you,
     N = o.needs;
@@ -1356,7 +1356,7 @@ function questNeeds(o) {
     ? `<div class="jwarn" style="color:#ffb070">⚠ ${esc(w.join('; '))}. You can take it on and switch ships for that step.</div>`
     : '';
 }
-// 2.4: a contact's story or a side story on the job board
+// a contact's story or a side story on the job board
 function questCard(o) {
   const n = o.sys === G.sys ? 0 : (route(SYS, G.sys, o.sys) || []).length;
   return `<div class="card story quest" style="cursor:default"><div class="storytag">${o.side ? 'SIDE STORY' : 'CONTACT'} · ${esc(o.giver)}${o.standing ? ` · <span class="dim">${esc(o.standing)}</span>` : ''}</div><div class="t">${esc(o.title)}</div><div class="qintro">${esc(o.text)}</div>
@@ -1371,7 +1371,7 @@ function yardSorted(list) {
     .sort((a, b) =>
       k === 'cost' ? (A[a].cost || 0) - (A[b].cost || 0) : (A[b][k] || 0) - (A[a][k] || 0),
     );
-} // 2.5.2
+}
 function outfitCat(o) {
   if (!o) return 'utility';
   const e = o.eff || {};
@@ -1406,23 +1406,23 @@ function jobInfo(o, y) {
       on = A_ && A_.members ? A_.members.filter((m) => m.online).length : 0;
     if (on < 2) warn = 'Needs an Armada with at least 2 captains online (ALLIES tab).';
     else note = `Taken for all ${on} captains online in your Armada; each gets an equal share.`;
-  } // 2.6
+  }
   if (
     (o.type === 'bounty' || o.type === 'assassinate') &&
     o.hull &&
     G.A.ships[o.hull] &&
     !y.shipless
   ) {
-    // 2.0.3: how the target compares with your ship
+    // how the target compares with your ship
     const r =
       (G.A.ships[o.hull].strength || 10) / Math.max(1, G.A.ships[y.ship.hull].strength || 10);
     if (r > 1.6)
       note = `Target: ${G.A.ships[o.hull].name}, ${r > 4 ? 'far stronger than' : 'stronger than'} your ${G.A.ships[y.ship.hull].name}.`;
   }
   if (!note && !y.shipless && y.shipStats && n > Math.floor(y.shipStats.fuel / 100))
-    note = `${n} jumps away, but your tanks hold ${Math.floor(y.shipStats.fuel / 100)}. Plan a stop to land and refuel on the way.`; // 2.4
+    note = `${n} jumps away, but your tanks hold ${Math.floor(y.shipStats.fuel / 100)}. Plan a stop to land and refuel on the way.`;
   if (!note && o.type === 'supply' && !y.shipless && o.qty > (y.shipStats.cargo || 0))
-    note = `You buy and carry the ${o.qty} t yourself, and your hold takes ${y.shipStats.cargo || 0} t.`; // 2.5.2
+    note = `You buy and carry the ${o.qty} t yourself, and your hold takes ${y.shipStats.cargo || 0} t.`;
   if (!warn && (o.type === 'cargo' || o.type === 'smuggle') && o.qty > holdFree(y))
     warn = `Needs ${o.qty} t of hold space; you have ${Math.max(0, holdFree(y))} t free.`;
   return { where, warn, note };
@@ -1434,6 +1434,70 @@ function tradeIn(y) {
   for (const [id, n] of Object.entries(y.ship.outfits)) v += (O[id] ? O[id].cost : 0) * n * 0.5;
   return Math.round(v);
 }
+// Dataset coercions preserve the existing wire contract: absent fields remain undefined,
+// and numeric IDs/quantities are converted only where their message schema requires it.
+function requestStationRelocation() {
+  const destination = document.getElementById('relsite');
+  if (!destination) return;
+  const siteId = destination.value;
+  ask(
+    `Warp your Personal Station to ${destination.selectedOptions[0].textContent.split(' · ')[0]}? It costs ${credits(relocateCost(G.you.station.ops))} credits and an alloy II crate, and the warp core then needs ${RELOCATE.cooldownH} hours to recharge.`,
+    () => send({ t: 'station', op: 'relocate', site: siteId }),
+  );
+}
+
+function requestShuttleAction(dataset) {
+  const message = {
+    t: 'shuttle',
+    op: dataset.op,
+    sid: dataset.sid ? +dataset.sid : undefined,
+    kind: dataset.kind,
+    job: dataset.job,
+  };
+  if (dataset.op === 'send') {
+    const selectedShuttle = document.querySelector(`select[data-job="${dataset.job}"]`);
+    message.sid = selectedShuttle ? +selectedShuttle.value : undefined;
+  }
+  if (dataset.op === 'scrap') {
+    ask('Scrap this shuttle for 30% of its price?', () => send(message));
+    return;
+  }
+  send(message);
+}
+
+function requestDockAction(dataset) {
+  if (dataset.op === 'sell') {
+    const storedShip = dataset.uid
+        ? G.you.dock.find((candidate) => candidate.ship.uid === dataset.uid)
+        : G.you.dock[+dataset.i],
+      outfits = allOutfits(G.A);
+    let resaleCredits = (G.A.ships[storedShip.ship.hull].cost || 0) * 0.5;
+    for (const [id, n] of Object.entries(storedShip.ship.outfits || {}))
+      resaleCredits += (outfits[id] ? outfits[id].cost : 0) * n * 0.5;
+    ask(
+      `Sell the stored ${G.A.ships[storedShip.ship.hull].name} and its outfits for ${credits(Math.round(resaleCredits))} credits?`,
+      () => send({ t: 'dock', op: dataset.op, i: +dataset.i, uid: dataset.uid || undefined }),
+    );
+    return;
+  }
+  send({ t: 'dock', op: dataset.op, i: +dataset.i, uid: dataset.uid || undefined });
+}
+
+function placeExchangeOrder() {
+  const [kind, itemId, grade] = $('xitem').value.split(':');
+  send({
+    t: 'exchange',
+    op: 'place',
+    side: $('xside').value,
+    kind: kind,
+    mat: kind === 'mat' ? itemId : undefined,
+    grade: kind === 'mat' ? +grade : undefined,
+    cid: kind === 'com' ? itemId : undefined,
+    qty: +$('xqty').value,
+    price: +$('xprice').value,
+  });
+}
+
 function onAct(e) {
   const el = e.target.closest('[data-act]');
   if (!el) return;
@@ -1446,17 +1510,10 @@ function onAct(e) {
       break;
     case 'addfriend':
       send({ t: 'social', op: 'add', name: d.n });
-      break; // 2.6
-    case 'relocate': {
-      const sel = document.getElementById('relsite');
-      if (!sel) break;
-      const id = sel.value;
-      ask(
-        `Warp your Personal Station to ${sel.selectedOptions[0].textContent.split(' · ')[0]}? It costs ${credits(relocateCost(G.you.station.ops))} credits and an alloy II crate, and the warp core then needs ${RELOCATE.cooldownH} hours to recharge.`,
-        () => send({ t: 'station', op: 'relocate', site: id }),
-      );
       break;
-    }
+    case 'relocate':
+      requestStationRelocation();
+      break;
     case 'ainvite':
       send({ t: 'armada', op: 'invite', name: d.n });
       break;
@@ -1527,7 +1584,7 @@ function onAct(e) {
       break;
     case 'bm':
       send({ t: 'bm', id: d.id });
-      break; // 1.2
+      break;
     case 'promote':
       send({ t: 'promote', id: isNaN(+d.id) ? d.id : +d.id });
       break;
@@ -1559,39 +1616,11 @@ function onAct(e) {
         );
       break;
     }
-    case 'sh': {
-      const m = {
-        t: 'shuttle',
-        op: d.op,
-        sid: d.sid ? +d.sid : undefined,
-        kind: d.kind,
-        job: d.job,
-      };
-      if (d.op === 'send') {
-        const sel = document.querySelector(`select[data-job="${d.job}"]`);
-        m.sid = sel ? +sel.value : undefined;
-      }
-      if (d.op === 'scrap') {
-        ask('Scrap this shuttle for 30% of its price?', () => send(m));
-        break;
-      }
-      send(m);
+    case 'sh':
+      requestShuttleAction(d);
       break;
-    }
     case 'dock':
-      if (d.op === 'sell') {
-        const x = d.uid ? G.you.dock.find((z) => z.ship.uid === d.uid) : G.you.dock[+d.i],
-          O = allOutfits(G.A);
-        let v = (G.A.ships[x.ship.hull].cost || 0) * 0.5;
-        for (const [id, n] of Object.entries(x.ship.outfits || {}))
-          v += (O[id] ? O[id].cost : 0) * n * 0.5;
-        ask(
-          `Sell the stored ${G.A.ships[x.ship.hull].name} and its outfits for ${credits(Math.round(v))} credits?`,
-          () => send({ t: 'dock', op: d.op, i: +d.i, uid: d.uid || undefined }),
-        );
-        break;
-      }
-      send({ t: 'dock', op: d.op, i: +d.i, uid: d.uid || undefined });
+      requestDockAction(d);
       break;
     case 'goal':
       send({ t: 'goal', period: d.p, i: +d.i });
@@ -1638,21 +1667,9 @@ function onAct(e) {
     case 'arena':
       send({ t: 'arena', op: d.op, mode: d.mode });
       break;
-    case 'xplace': {
-      const [k, a, b] = $('xitem').value.split(':');
-      send({
-        t: 'exchange',
-        op: 'place',
-        side: $('xside').value,
-        kind: k,
-        mat: k === 'mat' ? a : undefined,
-        grade: k === 'mat' ? +b : undefined,
-        cid: k === 'com' ? a : undefined,
-        qty: +$('xqty').value,
-        price: +$('xprice').value,
-      });
+    case 'xplace':
+      placeExchangeOrder();
       break;
-    }
     case 'xcancel':
       send({ t: 'exchange', op: 'cancel', id: +d.id });
       break;
@@ -1687,14 +1704,14 @@ function onAct(e) {
       break;
     case 'dockgo':
       send({ t: 'docks', op: 'activate', k: +d.k });
-      break; // 2.1
+      break;
     case 'wingrep':
       send({ t: 'docks', op: 'repair', uid: d.uid });
-      break; // 1.0.2: from the no-ship notice
+      break; // from the no-ship notice
     case 'ocat':
       G.ocat = d.k;
       renderLanded();
-      break; // 2.4
+      break;
     case 'ltab':
       G.ltab = d.t;
       G.sel = null;
@@ -1775,7 +1792,7 @@ export function closeMap() {
     window.dispatchEvent(new CustomEvent('rift-toast-sound', { detail: 'close' }));
   $('gmap').classList.add('hidden');
 }
-// 1.2 map views
+// map views
 $('gcid').innerHTML = COMMODITIES.filter((c) => !['ore', 'gas', 'shards'].includes(c.id))
   .map((c) => `<option value="${c.id}">${c.name}</option>`)
   .join('');
@@ -1812,7 +1829,7 @@ function drawGMap() {
       G.route && G.route.includes(s.id)
         ? ` · ${G.route.indexOf(s.id) + 1} jump${G.route.indexOf(s.id) ? 's' : ''} away`
         : '';
-    let extra = ''; // 1.2: what the current map view says about this system
+    let extra = ''; // what the current map view says about this system
     if (seen && G.mapMode === 'trade') {
       const cid = G.mapCid || 'food',
         C = COMMODITIES.find((c) => c.id === cid),
@@ -1859,7 +1876,7 @@ function drawGMap() {
         return buys.length
           ? ` · <span style="color:var(--ok)">buys your ${buys.map((c) => COMMODITIES.find((x) => x.id === c).name.toLowerCase()).join(', ')}</span>`
           : '';
-      })()}</span>`; // 2.5.2
+      })()}</span>`;
   }
 }
 export function plot(to) {

@@ -16,6 +16,8 @@ export function bindOperations(operations, capabilities) {
     if (typeof operation !== 'function')
       throw new TypeError(`Feature operation ${name} must be a function`);
   }
+  // Seal the operation names while allowing test doubles to replace methods.
+  // Freezing this object would also forbid those intentional substitutions.
   return /** @type {BoundOperations<T>} */ (
     Object.seal(
       Object.fromEntries(entries.map(([name, operation]) => [name, operation.bind(capabilities)])),

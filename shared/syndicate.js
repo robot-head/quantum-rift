@@ -1,4 +1,4 @@
-// 1.2 "Syndicate and Officers": the Syndicate crime path and black market, officer ranks and traits, lower-deck crew,
+// The Syndicate crime path and black market, officer ranks and traits, lower-deck crew,
 // the bank (after Endless Sky's mortgages), and passenger and rush jobs.
 
 // ------------------------------------------------------------------ the Syndicate

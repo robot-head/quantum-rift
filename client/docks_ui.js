@@ -1,4 +1,4 @@
-// 2.1 Docks: the DOCKS screen at your Personal Station, the dock switcher by the DEPART button, and the sidebar line.
+// Docks: the DOCKS screen at your Personal Station, the dock switcher by the DEPART button, and the sidebar line.
 import { ROLES, RARITY } from '/shared/hangar.js';
 import { WING_REPAIR_COST, NEXT_DOCK_OPS } from '/shared/docks.js';
 import { credits } from '/shared/rules.js';

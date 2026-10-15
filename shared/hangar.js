@@ -1,4 +1,4 @@
-// Quantum Rift 0.5 "Hangar Deck" data: shuttles, officers, research trees, refining and the drydock.
+// Hangar data: shuttles, officers, research trees, refining and the drydock.
 // Shared by the server (rules) and the client (display).
 
 // ------------------------------------------------------------------ shuttles
@@ -249,11 +249,11 @@ export const OFFICER_NAMES = {
   ],
 };
 export const BRIDGE_SLOTS = ['captain', 'bridge1', 'bridge2'];
-export const ROSTER_MAX = 24; // 2.1: room for wingmate captains and crews
+export const ROSTER_MAX = 24; // room for wingmate captains and crews
 export const XP_LEVEL = (lv) => 100 * lv * lv; // xp needed to reach the next level
 export const MAX_LEVEL = 10;
 
-// ------------------------------------------------------------------ research trees (replaces the single 0.2 list)
+// ------------------------------------------------------------------ research trees
 // `needs` chains the nodes. Queueing a node queues its unfinished prerequisites first (STFC-style bulk research).
 export const RESEARCH_TREES = ['Combat', 'Station', 'Galaxy', 'Shuttles'];
 export const RESEARCH2 = [

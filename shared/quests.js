@@ -1,4 +1,4 @@
-// Quantum Rift 2.4: questlines. Two kinds:
+// Questlines. Two kinds:
 //  - CHAINS: generated multi-step jobs offered by recurring contacts at spaceport bars. Each contact remembers you.
 //  - SIDE_STORIES: six handcrafted stories that start at a particular world.
 // A step is an ordinary job (cargo, survey, rescue, bounty, assassinate, passenger, smuggle, convoy, supply, patrol, salvage)

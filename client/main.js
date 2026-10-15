@@ -108,8 +108,8 @@ const G = (window.G = {
     const f = FAC[e.fac];
     if (G.arena && e.fl & 16)
       return !!e.name && !e.name.startsWith(G.arena.team === 'A' ? 'Azure' : 'Crimson');
-    if (e.fl & 16) return !!(G.you.duel && G.you.duel.with === e.name); // 2.6: no open-galaxy PvP; only your duel opponent
-    if (G.isAlly && G.isAlly(e)) return false; // 2.6: Armada members' wingmates
+    if (e.fl & 16) return !!(G.you.duel && G.you.duel.with === e.name); // no open-galaxy PvP; only your duel opponent
+    if (G.isAlly && G.isAlly(e)) return false; // Armada members' wingmates
     const F = FACTIONS[f];
     if (!F) return false;
     if (F.alwaysHostile) return true;
@@ -117,7 +117,7 @@ const G = (window.G = {
     return F.pirate ? rep < 30 : rep <= -30;
   },
 });
-// 1.0 accessibility: palettes, key bindings, UI scale
+// accessibility: palettes, key bindings, UI scale
 const PALETTES = {
   normal: {
     own: '#3fd36b',
@@ -187,7 +187,7 @@ if (!G.opts.v21) {
   try {
     localStorage.setItem('rift.opts', JSON.stringify(G.opts));
   } catch {}
-} // 2.1: quieter defaults, applied once to older settings
+} // quieter defaults, applied once to older settings
 function saveOpts() {
   try {
     localStorage.setItem('rift.opts', JSON.stringify(G.opts));
@@ -205,7 +205,7 @@ function applyOpts() {
     music: G.opts.music ?? 0.6,
     mute: G.opts.mute,
   });
-  setRadioLevel(G.opts.mute ? 0 : G.opts.vol * G.opts.radio, G.opts.radio); // 1.0.3: the radio is in the mixer
+  setRadioLevel(G.opts.mute ? 0 : G.opts.vol * G.opts.radio, G.opts.radio); // the radio is in the mixer
 }
 applyOpts();
 // loading screen: warm the browser cache with the common ship sprites and station art while the login is shown
@@ -245,7 +245,7 @@ function send(m) {
 
 // ------------------------------------------------------------------ login and connection
 $('lbtn').onclick = login;
-// 2.0: the login theme starts on the first click or key on the login screen (browsers block sound until then)
+// the login theme starts on the first click or key on the login screen (browsers block sound until then)
 const loginMusic = () => {
   if ($('login').classList.contains('hidden')) return;
   audio.unlock();
@@ -268,7 +268,7 @@ $('musicbtn').onclick = (e) => {
 $('musicbtn').classList.toggle('off', (G.opts.music ?? 0.6) === 0);
 window.addEventListener('pointerdown', loginMusic, true);
 window.addEventListener('keydown', loginMusic, true);
-// 2.0: interface sounds for every button, tab and chip
+// interface sounds for every button, tab and chip
 document.addEventListener(
   'click',
   (e) => {
@@ -376,7 +376,7 @@ async function login() {
     initUI(G, send);
     initCoop(G, send, { toast, ask, plot });
     $('lstat').textContent = was;
-  } // 1.0.3: the status line comes back if login fails
+  } // the status line comes back if login fails
   try {
     localStorage.setItem('rift.name', name);
   } catch {}
@@ -384,7 +384,7 @@ async function login() {
   G._kicked = false;
   openSocket(0);
 }
-// 2.4: a dropped connection reconnects on its own, signing back in as the same captain
+// a dropped connection reconnects on its own, signing back in as the same captain
 function openSocket(tries) {
   const { name, pass } = G._cred;
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
@@ -411,6 +411,72 @@ function openSocket(tries) {
     }
   };
 }
+// A scene transition clears stale prediction state before rendering its landing/space UI.
+function enterLandedScene(message) {
+  if (!G.landed) audio.ui('dock', 0.8);
+  audio.setAmbience('station');
+  setAuto(null);
+  G.landed = message;
+  G.view = null;
+  G.ents.clear();
+  G.shots = [];
+  G.beams = [];
+  G.loot = [];
+  G.target = 0;
+  history = [];
+  showLanded();
+  refreshCompanion();
+  audio.play(10110, 0, 0, 0.5);
+}
+
+function enterSpaceScene(message) {
+  if (String(message.sys).startsWith('arena-') && !SYS[message.sys])
+    SYS[message.sys] = arenaSystem(message.sys);
+  {
+    const fromSpace = !!G.view && !G.landed;
+    if (G.landed) audio.ui('undock', 0.8);
+    else if (fromSpace) {
+      audio.ui('arrive', 0.8);
+      G._arriveT = performance.now();
+      G._jumping = false;
+    }
+    audio.setAmbience('space');
+    const go = G.autoRoute;
+    G.autoKeep = true;
+    setAuto(null);
+    G.autoRoute = go;
+  }
+  G.landed = null;
+  hideLanded();
+  G.sys = message.sys;
+  G.myId = message.id;
+  G.view = null;
+  G.ents.clear();
+  G.shots = [];
+  G.beams = [];
+  history = [];
+  G.rocks = (message.rocks || []).map(([id, x, y, r, ore, hp]) => ({ id, x, y, r, ore, hp }));
+  G.rockById = new Map(G.rocks.map((k) => [k.id, k]));
+  if (G.route.length && G.route[0] === message.sys) G.route.shift();
+  drawMini();
+  if (G.autoRoute && G.route.length)
+    setTimeout(() => {
+      if (G.autoRoute && G.view && G.route.length && !G.auto) {
+        G.autoKeep = true;
+        setAuto({ mode: 'jump' }, `Autopilot: next jump to ${SYS[G.route[0]].name}.`);
+      }
+    }, 1500);
+  else G.autoRoute = false;
+  {
+    const an = G.world && G.world.anomalies && G.world.anomalies[message.sys];
+    if (an && ANOMALIES[an])
+      toast(`${ANOMALIES[an].icon} ${ANOMALIES[an].name}: ${ANOMALIES[an].desc}`);
+  }
+  G.navStellar = SYS[message.sys].stellars.find((p) => p.svc.includes('L'))
+    ? SYS[message.sys].stellars.find((p) => p.svc.includes('L')).id
+    : null;
+}
+
 function onMessage(m) {
   switch (m.t) {
     case 'error':
@@ -430,7 +496,7 @@ function onMessage(m) {
       const first = !G.you;
       G.you = m.d;
       G.sys = m.d.sys;
-      coopYou(); // 2.6
+      coopYou();
       for (const [w, n] of Object.entries(m.d.ship.ammo || {})) if (!G.view) G.ammo[w] = n;
       if (G.landed) renderLanded();
       refreshCompanion();
@@ -440,66 +506,10 @@ function onMessage(m) {
       break;
     }
     case 'landed':
-      if (!G.landed) audio.ui('dock', 0.8);
-      audio.setAmbience('station');
-      setAuto(null);
-      G.landed = m;
-      G.view = null;
-      G.ents.clear();
-      G.shots = [];
-      G.beams = [];
-      G.loot = [];
-      G.target = 0;
-      history = [];
-      showLanded();
-      refreshCompanion();
-      audio.play(10110, 0, 0, 0.5);
+      enterLandedScene(m);
       break;
     case 'space':
-      if (String(m.sys).startsWith('arena-') && !SYS[m.sys]) SYS[m.sys] = arenaSystem(m.sys);
-      {
-        const fromSpace = !!G.view && !G.landed;
-        if (G.landed) audio.ui('undock', 0.8);
-        else if (fromSpace) {
-          audio.ui('arrive', 0.8);
-          G._arriveT = performance.now();
-          G._jumping = false;
-        }
-        audio.setAmbience('space');
-        const go = G.autoRoute;
-        G.autoKeep = true;
-        setAuto(null);
-        G.autoRoute = go;
-      }
-      G.landed = null;
-      hideLanded();
-      G.sys = m.sys;
-      G.myId = m.id;
-      G.view = null;
-      G.ents.clear();
-      G.shots = [];
-      G.beams = [];
-      history = [];
-      G.rocks = (m.rocks || []).map(([id, x, y, r, ore, hp]) => ({ id, x, y, r, ore, hp }));
-      G.rockById = new Map(G.rocks.map((k) => [k.id, k]));
-      if (G.route.length && G.route[0] === m.sys) G.route.shift();
-      drawMini();
-      if (G.autoRoute && G.route.length)
-        setTimeout(() => {
-          if (G.autoRoute && G.view && G.route.length && !G.auto) {
-            G.autoKeep = true;
-            setAuto({ mode: 'jump' }, `Autopilot: next jump to ${SYS[G.route[0]].name}.`);
-          }
-        }, 1500);
-      else G.autoRoute = false;
-      {
-        const an = G.world && G.world.anomalies && G.world.anomalies[m.sys];
-        if (an && ANOMALIES[an])
-          toast(`${ANOMALIES[an].icon} ${ANOMALIES[an].name}: ${ANOMALIES[an].desc}`);
-      }
-      G.navStellar = SYS[m.sys].stellars.find((p) => p.svc.includes('L'))
-        ? SYS[m.sys].stellars.find((p) => p.svc.includes('L')).id
-        : null;
+      enterSpaceScene(m);
       break;
     case 'snap':
       onSnap(m);
@@ -514,7 +524,7 @@ function onMessage(m) {
     case 'follow':
     case 'rally':
       onCoopMsg(m);
-      break; // 2.6: friends, messages, trades, follow the leader
+      break; // friends, messages, trades, follow the leader
     case 'paused':
       G.paused = m.on;
       $('pausebox').classList.toggle('hidden', !m.on);
@@ -529,7 +539,7 @@ function onMessage(m) {
     case 'hail':
       if ($('hailbox').classList.contains('hidden')) audio.ui('hail');
       showHail(m);
-      break; // 1.1
+      break;
     case 'order':
       G.order = m.o;
       break;
@@ -538,7 +548,7 @@ function onMessage(m) {
       if (!$('infobox').classList.contains('hidden')) renderInfo();
       break;
     case 'world': {
-      // 2.5: a new trouble close by gets a beacon and a line of news
+      // a new trouble close by gets a beacon and a line of news
       const was = G.world && G.world.states;
       G.world = m;
       drawMini();
@@ -615,7 +625,7 @@ function showStory(m) {
     ? '<button class="btn" id="storyok">CONTINUE</button>'
     : `<button class="btn sm" id="storyno">${m.ref || 'Not now'}</button><button class="btn" id="storyyes">${m.acc || 'Accept'}</button>`;
   $('storybox').classList.remove('hidden');
-  audio.ui(/QUEST|SIDE STORY/.test(m.tag || '') ? 'quest' : m.done ? 'complete' : 'ping', 0.7); // 2.5: story beats have their own sting
+  audio.ui(/QUEST|SIDE STORY/.test(m.tag || '') ? 'quest' : m.done ? 'complete' : 'ping', 0.7); // story beats have their own sting
   const close = () => {
     $('storybox').classList.add('hidden');
     if (storyQ.length) setTimeout(() => showStory(storyQ.shift()), 150);
@@ -640,6 +650,8 @@ setInterval(() => {
 function onSnap(m) {
   const now = performance.now();
   lastSnapT = now;
+  // Packed tuples mirror the server snapshot schema. Own angle a is radians;
+  // remote ship angles below arrive in milliradians and are converted once.
   const [id, ack, x, y, vx, vy, a, sh, ar, fu, tgt, ammo] = m.me;
   G.myId = id;
   const seen = new Set();
@@ -695,29 +707,31 @@ function onSnap(m) {
     if (Math.hypot(v.ox, v.oy) > 300) v.ox = v.oy = 0;
   }
   G.view = v;
-  {
-    // 2.0 audio feedback: low shields, target lock, jump
-    const st2 = G.you && G.you.shipStats,
-      shp = st2 ? v.shield / Math.max(1, st2.shield) : 1;
-    if (shp < 0.25 && !G._lowSh && v.armor < (st2 ? st2.armor : 1)) {
-      G._lowSh = true;
-      audio.ui('lowshield');
-    } else if (shp > 0.45) G._lowSh = false;
-    if (G.target && G.target !== G._lastTgt) audio.ui('lock', 0.7);
-    G._lastTgt = G.target;
-    if (v.fl & 8 && !G._jumping) {
-      G._jumping = true;
-      G._jumpStart = performance.now();
-      audio.ui(G.you && G.you.shipStats && G.you.shipStats.jumpFast ? 'jumpfast' : 'jump', 0.9);
-    } else if (!(v.fl & 8) && G._jumping && performance.now() - G._jumpStart > 2500)
-      G._jumping = false; // 2.1: the jump event usually starts it first
-    if (G._lastAr != null && v.armor < G._lastAr - 0.5) {
-      G._hurtT = performance.now();
-    }
-    G._lastAr = v.armor;
-  }
+  updateShipFeedback(v);
   for (const ev of m.ev) onEvent(ev);
 }
+function updateShipFeedback(view) {
+  // audio feedback: low shields, target lock, jump
+  const shipStats = G.you && G.you.shipStats,
+    shieldFraction = shipStats ? view.shield / Math.max(1, shipStats.shield) : 1;
+  if (shieldFraction < 0.25 && !G._lowSh && view.armor < (shipStats ? shipStats.armor : 1)) {
+    G._lowSh = true;
+    audio.ui('lowshield');
+  } else if (shieldFraction > 0.45) G._lowSh = false;
+  if (G.target && G.target !== G._lastTgt) audio.ui('lock', 0.7);
+  G._lastTgt = G.target;
+  if (view.fl & 8 && !G._jumping) {
+    G._jumping = true;
+    G._jumpStart = performance.now();
+    audio.ui(G.you && G.you.shipStats && G.you.shipStats.jumpFast ? 'jumpfast' : 'jump', 0.9);
+  } else if (!(view.fl & 8) && G._jumping && performance.now() - G._jumpStart > 2500)
+    G._jumping = false; // the jump event usually starts it first
+  if (G._lastAr != null && view.armor < G._lastAr - 0.5) {
+    G._hurtT = performance.now();
+  }
+  G._lastAr = view.armor;
+}
+
 function onEvent(ev) {
   const me = G.view,
     dx = me ? ev[1] - me.x : 0,
@@ -755,14 +769,14 @@ function onEvent(ev) {
     case 'flash':
       flash(ev[1], ev[2]);
       if (Math.hypot(dx, dy) > 80) audio.play('jumpfar', dx, dy, 0.8);
-      break; // 2.1: your own jump has its own sound
+      break; // your own jump has its own sound
     case 'jump':
       if (ev[1] === G.myId && !G._jumping) {
         G._jumping = true;
         G._jumpStart = performance.now();
         audio.ui(G.you && G.you.shipStats && G.you.shipStats.jumpFast ? 'jumpfast' : 'jump', 0.9);
       }
-      break; // 2.1: the spool starts the moment the server begins your jump
+      break; // the spool starts the moment the server begins your jump
     case 'pickup':
       audio.play(10112, 0, 0, 0.6);
       break;
@@ -773,7 +787,7 @@ function onEvent(ev) {
           `${(e && e.name) || (e && G.A.ships[e.hull] ? 'The ' + G.A.ships[e.hull].name : 'Your target')} breaks off and runs for the jump point!`,
         );
       }
-      break; // 2.4
+      break;
   }
 }
 
@@ -788,7 +802,7 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     $('storyok').click();
     return;
-  } // 2.5.2: Enter or Space continues a story pop-up
+  } // Enter or Space continues a story pop-up
   if (e.key === 'Enter' && G.you) {
     const c = $('chatin');
     if (document.activeElement === c) {
@@ -826,7 +840,7 @@ window.addEventListener('keydown', (e) => {
   if (G.landed && actionOf(e.code) === 'land' && !$('depart').disabled) {
     send({ t: 'depart' });
     return;
-  } // 1.0.3: L leaves the dock too
+  } // L leaves the dock too
   if (G.landed && /^Digit[1-9]$/.test(e.code) && G._ltabs) {
     const k = G._ltabs[+e.code.slice(5) - 1];
     if (k) {
@@ -836,7 +850,7 @@ window.addEventListener('keydown', (e) => {
       audio.ui('tab', 0.7);
     }
     return;
-  } // 2.0: number keys pick landing tabs
+  } // number keys pick landing tabs
   if (e.key === '?' || e.code === 'F1') {
     e.preventDefault();
     openControls();
@@ -873,7 +887,7 @@ window.addEventListener('keydown', (e) => {
       saveOpts();
       volUi();
       toast(G.opts.mute ? 'Sound muted (N to unmute).' : 'Sound on.');
-      break; // 2.1
+      break;
     case 'board':
       openBoard();
       break;
@@ -924,7 +938,7 @@ window.addEventListener('blur', () => {
 });
 function jumpNext() {
   if (!G.route.length) return toast('Plot a course on the map first (M).');
-  G.autoRoute = G.route.length > 1; // 1.1: J flies the whole plotted route, jump after jump
+  G.autoRoute = G.route.length > 1; // J flies the whole plotted route, jump after jump
   const S = SYS[G.sys];
   if (S && S.gate === G.route[0]) {
     const w = S.stellars.find((p) => p.wormhole);
@@ -941,7 +955,7 @@ function jumpNext() {
       'Autopilot: flying clear of the planets to jump. Steer to take over.',
     );
     return;
-  } // 1.0.3
+  }
   send({ t: 'jump', to: G.route[0] });
 }
 // ------------------------------------------------------------------ 1.1 hailing
@@ -1039,7 +1053,7 @@ G.startAutoJump = () =>
       G.autoKeep = true;
       setAuto({ mode: 'jump' }, `Autopilot: following to ${SYS[G.route[0]].name}.`);
     }
-  }, 300); // 2.6: follow the leader
+  }, 300); // follow the leader
 function setAuto(a, msg) {
   if (a && !G.auto) audio.ui('autopilot', 0.8);
   G.auto = a;
@@ -1091,7 +1105,7 @@ function autopilot(inp) {
     S = SYS[G.sys];
   if (!me || !st || !S) return setAuto(null);
   if (A.mode === 'stop') {
-    // 1.1: full stop: turn against your drift and burn until still
+    // full stop: turn against your drift and burn until still
     const sp = Math.hypot(me.vx, me.vy);
     if (sp < 6) {
       inp.thrust = 0;
@@ -1141,7 +1155,7 @@ function sendChat() {
     send({ t: 'note', text: v });
     toast('Added to your log.');
     return;
-  } // 2.4: in a solo game the chat line writes notes in your captain's log
+  } // in a solo game the chat line writes notes in your captain's log
   if (v.startsWith('/s ')) send({ t: 'chat', msg: v.slice(3), ch: 'sys' });
   else if (v.startsWith('/a ') || v.startsWith('/f '))
     send({ t: 'chat', msg: v.slice(3), ch: 'armada' });
@@ -1153,7 +1167,7 @@ function sendChat() {
   } else if (G.chan) send({ t: 'chat', msg: v, ch: G.chan });
   else send({ t: 'chat', msg: v });
 }
-// 1.0.1 command bar: chat channel buttons, the controls card, and shortcuts to key bindings, options and the map
+// command bar: chat channel buttons, the controls card, and shortcuts to key bindings, options and the map
 $('cchan').addEventListener('click', (e) => {
   const b = e.target.closest('[data-ch]');
   if (!b) return;
@@ -1244,12 +1258,14 @@ function landRequest(pick) {
   if (d > p.r + 60 || Math.hypot(me.vx, me.vy) > 80) {
     setAuto({ mode: 'land', id: p.id }, `Autopilot: landing on ${p.name}. Steer to take over.`);
     return;
-  } // 1.0.3
+  }
   send({ t: 'land', stellar: p.id });
 }
 
 // ------------------------------------------------------------------ mouse: click to target, click a planet to set nav, double-click to land
 const mouse = { x: 0, y: 0, wx: 0, wy: 0, in: false, down: false };
+// Pointer events use CSS pixels; cam dimensions use backing-store pixels.
+// Picking deliberately uses the unshaken camera, not the cosmetic shake offset.
 function toWorld(cx, cy) {
   const r = window.devicePixelRatio || 1,
     rect = canvas.getBoundingClientRect();
@@ -1343,7 +1359,7 @@ canvas.addEventListener('mousedown', (e) => {
   if (e.button === 2) {
     G._look = { t: performance.now(), x: e.clientX, y: e.clientY, moved: false };
     return;
-  } // 2.1: hold right-click and move to look ahead (a quick click still clears your target)
+  } // hold right-click and move to look ahead (a quick click still clears your target)
   if (e.button !== 0) return;
   if (h && h.ship) {
     setTarget(h.ship.id);
@@ -1457,7 +1473,7 @@ window.addEventListener(
 function renderTut() {
   const i = G.you ? G.you.tut : TUTORIAL.length,
     T = TUTORIAL[i];
-  $('tut').classList.toggle('hidden', !T || !!G.arena || !!(G.you && G.you.duel && G.you.duel.on)); // 2.6: out of the way in the Crucible and in duels
+  $('tut').classList.toggle('hidden', !T || !!G.arena || !!(G.you && G.you.duel && G.you.duel.on)); // out of the way in the Crucible and in duels
   if (!T) return;
   $('tutn').textContent = `CAREER ${i + 1} / ${TUTORIAL.length}`;
   $('tutt').textContent = T.title;
@@ -1471,7 +1487,7 @@ $('tutn').onclick = () => {
   G.opts.tutMin = !G.opts.tutMin;
   saveOpts();
   $('tut').classList.toggle('mini', !!G.opts.tutMin);
-}; // 2.0: the career panel folds away
+}; // the career panel folds away
 $('tut').classList.toggle('mini', !!G.opts.tutMin);
 $('tutskip').onclick = () => {
   ask('Hide the career guide? You will not get the remaining rewards.', () =>
@@ -1537,12 +1553,12 @@ function closeOpts() {
 }
 $('optclose').onclick = closeOpts;
 $('optbtn').onclick = openOpts;
-// 2.1: the quick volume control in the command bar: one master slider and a mute button
+// the quick volume control in the command bar: one master slider and a mute button
 function paintRange(el) {
   if (!el) return;
   const p = ((el.value - el.min) / (el.max - el.min || 1)) * 100;
   el.style.background = `linear-gradient(90deg,#e0362a ${p}%,#3a0808 ${p}%)`;
-} // 2.1: red fill
+} // red fill
 document.addEventListener('input', (e) => {
   if (e.target.matches && e.target.matches('input[type=range]')) paintRange(e.target);
 });
@@ -1649,7 +1665,7 @@ window.addEventListener(
         rebinding = null;
         renderKeys();
         return;
-      } // 2.0.3
+      }
       if (e.code !== 'Escape') {
         for (const [a] of ACTIONS)
           if (a !== rebinding && bound(a) === e.code) G.opts.keys[a] = bound(rebinding);
@@ -1846,7 +1862,7 @@ function fixedTick() {
     } else autopilot(inp);
   }
   if (held('face') && !G.auto && G.target && G.ents.get(G.target)) {
-    // 1.1: hold E to turn toward your target (leading it)
+    // hold E to turn toward your target (leading it)
     const t = G.ents.get(G.target),
       st = G.you.shipStats,
       lead = Math.min(1, Math.hypot(t.rx - G.view.x, t.ry - G.view.y) / 600);
@@ -1859,7 +1875,7 @@ function fixedTick() {
   if (typing() && !G.auto) {
     inp.thrust = inp.turn = inp.rev = inp.ab = inp.fire1 = inp.fire2 = 0;
   } // the autopilot keeps flying while you chat
-  audio.engine(inp.thrust ? (inp.ab ? 1.6 : 1) : inp.rev ? 0.3 : 0); // 2.0: the engine hum follows your throttle
+  audio.engine(inp.thrust ? (inp.ab ? 1.6 : 1) : inp.rev ? 0.3 : 0); // the engine hum follows your throttle
   seq++;
   send({
     t: 'input',
@@ -1877,6 +1893,30 @@ function fixedTick() {
   if (G.you && !(me0 && me0.fl & 8)) step(G.view, G.you.shipStats, inp);
   G.view.fl = (inp.thrust ? 1 : 0) | (inp.ab ? 2 : 0);
 }
+// Authoritative x/y stay untouched here; rx/ry are presentation-only coordinates.
+function interpolateEntities(playerView, frameSeconds, nowMs) {
+  for (const entity of G.ents.values()) {
+    if (playerView && entity.id === G.myId) {
+      entity.rx = playerView.rx;
+      entity.ry = playerView.ry;
+      entity.a = playerView.a;
+      entity.fl = (entity.fl & ~3) | playerView.fl;
+      continue;
+    }
+    const extrapolationSeconds = Math.min(0.25, (nowMs - entity.t) / 1000),
+      targetX = entity.x + entity.vx * extrapolationSeconds,
+      targetY = entity.y + entity.vy * extrapolationSeconds;
+    const smoothing = Math.min(1, frameSeconds * 14);
+    entity.rx += (targetX - entity.rx) * smoothing;
+    entity.ry += (targetY - entity.ry) * smoothing;
+  }
+  for (const shot of G.shots) {
+    const ageSeconds = (nowMs - shot.t) / 1000;
+    shot.rx = shot.x + shot.vx * ageSeconds;
+    shot.ry = shot.y + shot.vy * ageSeconds;
+  }
+}
+
 function frame(t) {
   const dt = Math.min(0.1, (t - last) / 1000);
   last = t;
@@ -1885,7 +1925,7 @@ function frame(t) {
       k = Math.min(1, dt * (G._look ? 7 : 5));
     G.lookX = (G.lookX || 0) + (tg[0] - (G.lookX || 0)) * k;
     G.lookY = (G.lookY || 0) + (tg[1] - (G.lookY || 0)) * k;
-  } // 2.1 look-ahead
+  } // look-ahead
   acc += dt;
   while (acc >= DT) {
     fixedTick();
@@ -1900,26 +1940,7 @@ function frame(t) {
     me.ry = me.y + me.oy + me.vy * acc;
   }
   const now = performance.now();
-  for (const e of G.ents.values()) {
-    if (me && e.id === G.myId) {
-      e.rx = me.rx;
-      e.ry = me.ry;
-      e.a = me.a;
-      e.fl = (e.fl & ~3) | me.fl;
-      continue;
-    }
-    const k = Math.min(0.25, (now - e.t) / 1000),
-      tx = e.x + e.vx * k,
-      ty = e.y + e.vy * k;
-    const s = Math.min(1, dt * 14);
-    e.rx += (tx - e.rx) * s;
-    e.ry += (ty - e.ry) * s;
-  }
-  for (const s of G.shots) {
-    const k = (now - s.t) / 1000;
-    s.rx = s.x + s.vx * k;
-    s.ry = s.y + s.vy * k;
-  }
+  interpolateEntities(me, dt, now);
   const shotsView = G.shots.map((s) => ({ ...s, x: s.rx ?? s.x, y: s.ry ?? s.y }));
   if (!G.landed && G.sys)
     draw(

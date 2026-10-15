@@ -1,4 +1,4 @@
-// Quantum Rift 0.5 "Hangar Deck" server feature operations: shuttles, officers, the research queue,
+// Hangar feature operations: shuttles, officers, the research queue,
 // refining crates up a grade, the drydock, and boarding disabled ships.
 import {
   SYSTEMS,
@@ -52,20 +52,22 @@ function hash(str) {
   return h >>> 0;
 }
 const pick = (r, a) => a[Math.floor(r() * a.length)];
-const DIST = {};
+// Cache unweighted link distances for shuttle jobs. Gates are deliberately not
+// included: shuttle travel uses ordinary hyperspace links, not captain routing.
+const jumpDistanceCache = {};
 function jumps(from) {
-  if (DIST[from]) return DIST[from];
-  const d = { [from]: 0 },
-    q = [from];
-  while (q.length) {
-    const s = q.shift();
-    for (const l of SYS[s].links)
-      if (d[l] === undefined) {
-        d[l] = d[s] + 1;
-        q.push(l);
+  if (jumpDistanceCache[from]) return jumpDistanceCache[from];
+  const distanceBySystem = { [from]: 0 },
+    pending = [from];
+  while (pending.length) {
+    const systemId = pending.shift();
+    for (const neighbor of SYS[systemId].links)
+      if (distanceBySystem[neighbor] === undefined) {
+        distanceBySystem[neighbor] = distanceBySystem[systemId] + 1;
+        pending.push(neighbor);
       }
   }
-  return (DIST[from] = d);
+  return (jumpDistanceCache[from] = distanceBySystem);
 }
 const RACES = Object.keys(RACE_ROLES);
 

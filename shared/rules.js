@@ -280,34 +280,39 @@ export function weaponSound(w) {
 }
 
 // Flight: one fixed step. input: {thrust: 0/1, turn: -1/0/1, ab: 0/1, rev: 0/1}
-export function step(e, st, inp, dt = DT) {
-  if (inp.rev) {
+export function step(entity, stats, input, dt = DT) {
+  if (input.rev) {
     // turn to face against the direction of travel
-    const want = wrap(Math.atan2(e.vx, -e.vy) + Math.PI);
-    let d = angDiff(want, e.a);
-    const t = st.turn * dt;
-    e.a += Math.abs(d) < t ? d : Math.sign(d) * t;
-  } else e.a += (inp.turn || 0) * st.turn * dt;
-  e.a = wrap(e.a);
-  let acc = inp.thrust ? st.accel : 0,
-    max = st.maxSpeed;
-  if (inp.ab && st.afterburner && e.fuel > 0) {
-    acc *= 1.8;
-    max *= 1.4;
-    e.fuel -= 0.3;
+    const reverseHeading = wrap(Math.atan2(entity.vx, -entity.vy) + Math.PI);
+    const headingDifference = angDiff(reverseHeading, entity.a);
+    const turnStep = stats.turn * dt;
+    entity.a +=
+      Math.abs(headingDifference) < turnStep
+        ? headingDifference
+        : Math.sign(headingDifference) * turnStep;
+  } else entity.a += (input.turn || 0) * stats.turn * dt;
+  entity.a = wrap(entity.a);
+  let acceleration = input.thrust ? stats.accel : 0,
+    speedLimit = stats.maxSpeed;
+  if (input.ab && stats.afterburner && entity.fuel > 0) {
+    acceleration *= 1.8;
+    speedLimit *= 1.4;
+    // Fuel burn is per simulation tick, unlike acceleration and displacement.
+    entity.fuel -= 0.3;
   }
-  if (acc) {
-    e.vx += Math.sin(e.a) * acc * dt;
-    e.vy -= Math.cos(e.a) * acc * dt;
+  if (acceleration) {
+    entity.vx += Math.sin(entity.a) * acceleration * dt;
+    entity.vy -= Math.cos(entity.a) * acceleration * dt;
   }
-  const sp = Math.hypot(e.vx, e.vy);
-  if (sp > max) {
-    const k = Math.max(max / sp, 1 - 2 * dt);
-    e.vx *= k;
-    e.vy *= k;
+  const speed = Math.hypot(entity.vx, entity.vy);
+  if (speed > speedLimit) {
+    // Ease overspeed ships down instead of abruptly clipping their velocity.
+    const damping = Math.max(speedLimit / speed, 1 - 2 * dt);
+    entity.vx *= damping;
+    entity.vy *= damping;
   }
-  e.x += e.vx * dt;
-  e.y += e.vy * dt;
+  entity.x += entity.vx * dt;
+  entity.y += entity.vy * dt;
 }
 export function wrap(a) {
   while (a > Math.PI) a -= 2 * Math.PI;
@@ -322,12 +327,12 @@ export function angleTo(e, x, y) {
 } // 0 = up, clockwise
 
 // Prices at a stellar for a commodity (level -1 / 0 / 1), with a slow drift by time so markets move
-export function price(stellar, cid, t = Date.now()) {
-  const c = COMMODITIES.find((c) => c.id === cid);
-  const lv = stellar.prices && stellar.prices[cid];
-  if (lv === undefined || !c) return null;
-  const drift = 1 + 0.06 * Math.sin(t / 3.6e6 + cid.length * 1.7 + stellar.id.length);
-  return Math.round(c.base * (1 + 0.28 * lv) * drift);
+export function price(stellar, commodityId, timeMs = Date.now()) {
+  const commodity = COMMODITIES.find((commodity) => commodity.id === commodityId);
+  const priceLevel = stellar.prices && stellar.prices[commodityId];
+  if (priceLevel === undefined || !commodity) return null;
+  const drift = 1 + 0.06 * Math.sin(timeMs / 3.6e6 + commodityId.length * 1.7 + stellar.id.length);
+  return Math.round(commodity.base * (1 + 0.28 * priceLevel) * drift);
 }
 export function hostileFactions(a, b) {
   if (!a || !b || a === b) return false;
@@ -394,40 +399,46 @@ export function weaponLook(w) {
   return 'bolt';
 }
 
-// A* route between systems: fewest jumps, preferring safer systems when two routes are the same length
-export function route(SYS, from, to) {
-  if (!SYS[from] || !SYS[to]) return [];
-  const h = (id) => Math.hypot(SYS[id].x - SYS[to].x, SYS[id].y - SYS[to].y) / 240;
-  const g = { [from]: 0 },
-    prev = { [from]: null },
+// A* route between systems using jump count plus a danger surcharge per destination.
+// Returns destination IDs only: the starting system is not part of the route.
+export function route(systems, from, to) {
+  if (!systems[from] || !systems[to]) return [];
+  // Map-space distance is scaled to roughly one hyperspace hop.
+  const estimateRemaining = (id) =>
+    Math.hypot(systems[id].x - systems[to].x, systems[id].y - systems[to].y) / 240;
+  const costSoFar = { [from]: 0 },
+    previous = { [from]: null },
     open = new Set([from]);
   while (open.size) {
-    let cur = null,
-      cf = Infinity;
+    let current = null,
+      bestScore = Infinity;
     for (const id of open) {
-      const f = g[id] + h(id);
-      if (f < cf) {
-        cf = f;
-        cur = id;
+      const score = costSoFar[id] + estimateRemaining(id);
+      // Strict comparison preserves insertion-order tie breaking.
+      if (score < bestScore) {
+        bestScore = score;
+        current = id;
       }
     }
-    if (cur === to) break;
-    open.delete(cur);
-    for (const l of SYS[cur].gate ? [...SYS[cur].links, SYS[cur].gate] : SYS[cur].links) {
-      const c = g[cur] + 1 + SYS[l].danger * 0.08;
-      if (c < (g[l] ?? Infinity)) {
-        g[l] = c;
-        prev[l] = cur;
-        open.add(l);
+    if (current === to) break;
+    open.delete(current);
+    for (const neighbor of systems[current].gate
+      ? [...systems[current].links, systems[current].gate]
+      : systems[current].links) {
+      const candidateCost = costSoFar[current] + 1 + systems[neighbor].danger * 0.08;
+      if (candidateCost < (costSoFar[neighbor] ?? Infinity)) {
+        costSoFar[neighbor] = candidateCost;
+        previous[neighbor] = current;
+        open.add(neighbor);
       }
     }
   }
-  if (!(to in prev)) return [];
-  const r = [];
-  let c = to;
-  while (c && c !== from) {
-    r.unshift(c);
-    c = prev[c];
+  if (!(to in previous)) return [];
+  const path = [];
+  let cursor = to;
+  while (cursor && cursor !== from) {
+    path.unshift(cursor);
+    cursor = previous[cursor];
   }
-  return r;
+  return path;
 }

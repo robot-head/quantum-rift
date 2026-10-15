@@ -1,4 +1,4 @@
-// 1.2 screens: black market, bank, officer ranks and traits, lower decks, and faction-arc cards.
+// screens: black market, bank, officer ranks and traits, lower decks, and faction-arc cards.
 import { FACTIONS } from '/shared/galaxy.js';
 import {
   RANKS_OFF,

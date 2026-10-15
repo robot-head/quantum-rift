@@ -1,7 +1,7 @@
-// Quantum Rift 0.6 "Fleets and Fronts" data: invasions, anomalies, goals,
+// Invasions, anomalies, goals,
 // server events and faction stores. Shared by server and client.
 
-// (2.6: fleets became the Armada, shared/coop.js; territory, Dreadnoughts and the front window were removed)
+// Armada grouping rules live separately in shared/coop.js.
 
 // ------------------------------------------------------------------ invasions (server-wide bosses)
 export const BOSSES = [
@@ -101,8 +101,8 @@ export const GOAL_REWARD = {
   weekly: { credits: 150000, tokens: 12 },
 };
 
-// ------------------------------------------------------------------ server events (a weekly calendar, rotating every 2 days)
-// 0.9: a weekly rhythm (after STFC's event days), by UTC weekday, plus a monthly Gold Vein weekend
+// ------------------------------------------------------------------ server events (weekly calendar with a monthly override)
+// Events follow UTC weekdays, with a monthly Gold Vein weekend override.
 export const EVENTS = [
   {
     id: 'swarm',
@@ -257,48 +257,61 @@ export const SCAN = { range: 320, chance: 0.35, fine: 0.25, cooldown: 25 }; // p
 
 // ------------------------------------------------------------------ helpers (deterministic, shared)
 function rng(seed) {
-  let s = seed >>> 0 || 1;
+  let state = seed >>> 0 || 1;
   return () => {
-    s ^= s << 13;
-    s >>>= 0;
-    s ^= s >> 17;
-    s ^= s << 5;
-    s >>>= 0;
-    return s / 4294967296;
+    // Keep the signed right shift: changing it would change existing schedules.
+    state ^= state << 13;
+    state >>>= 0;
+    state ^= state >> 17;
+    state ^= state << 5;
+    state >>>= 0;
+    return state / 4294967296;
   };
 }
+const MILLISECONDS_PER_HOUR = 3600000;
+const MILLISECONDS_PER_DAY = 86400000;
 // anomalies for the current 6-hour window, deterministic from the time: { systemId: anomalyId }
 export function anomaliesAt(systems, now = Date.now()) {
-  const win = Math.floor(now / (ANOMALY.hours * 3600000)),
-    r = rng(0xa11 + win * 7919),
-    out = {};
-  const pool = systems.filter((s) => s.faction !== 'quantum' && s.id !== 'qgate' && !s.farside),
+  const windowIndex = Math.floor(now / (ANOMALY.hours * MILLISECONDS_PER_HOUR)),
+    random = rng(0xa11 + windowIndex * 7919),
+    anomalies = {};
+  const pool = systems.filter(
+      (system) => system.faction !== 'quantum' && system.id !== 'qgate' && !system.farside,
+    ),
     kinds = Object.keys(ANOMALIES);
   for (let i = 0; i < ANOMALY.count && pool.length; i++) {
-    const s = pool.splice(Math.floor(r() * pool.length), 1)[0];
-    out[s.id] = kinds[Math.floor(r() * kinds.length)];
+    // Draw without replacement so a system receives at most one anomaly.
+    const system = pool.splice(Math.floor(random() * pool.length), 1)[0];
+    anomalies[system.id] = kinds[Math.floor(random() * kinds.length)];
   }
-  return out;
+  return anomalies;
 }
 export function eventAt(now = Date.now()) {
-  const d = new Date(now),
-    wd = d.getUTCDay(),
-    md = d.getUTCDate();
-  if ((wd === 6 && md <= 7) || (wd === 0 && md <= 8 && md >= 2)) return GOLD_VEIN; // the first full weekend of the month
-  return EVENTS.find((e) => e.day === wd);
+  const date = new Date(now),
+    weekday = date.getUTCDay(),
+    dayOfMonth = date.getUTCDate();
+  const firstSaturday = weekday === 6 && dayOfMonth <= 7;
+  const followingSunday = weekday === 0 && dayOfMonth <= 8 && dayOfMonth >= 2;
+  if (firstSaturday || followingSunday) return GOLD_VEIN;
+  return EVENTS.find((event) => event.day === weekday);
 }
-export function eventCalendar(now = Date.now(), n = 7) {
-  const out = [],
-    day0 = Math.floor(now / 86400000);
-  for (let i = 0; i < n; i++) {
-    const t = (day0 + i) * 86400000;
-    out.push({ ...eventAt(t + 3600000), start: t, end: t + 86400000 });
+export function eventCalendar(now = Date.now(), days = 7) {
+  const calendar = [],
+    firstDay = Math.floor(now / MILLISECONDS_PER_DAY);
+  for (let i = 0; i < days; i++) {
+    const start = (firstDay + i) * MILLISECONDS_PER_DAY;
+    calendar.push({
+      ...eventAt(start + MILLISECONDS_PER_HOUR),
+      start,
+      end: start + MILLISECONDS_PER_DAY,
+    });
   }
-  return out;
+  return calendar;
 }
 export function dayKey(now = Date.now()) {
-  return Math.floor(now / 86400000);
+  return Math.floor(now / MILLISECONDS_PER_DAY);
 }
+// The Unix epoch was a Thursday; offset by three days to reset on Monday UTC.
 export function weekKey(now = Date.now()) {
-  return Math.floor((now / 86400000 + 3) / 7);
-} // weeks start Monday 00:00 UTC
+  return Math.floor((now / MILLISECONDS_PER_DAY + 3) / 7);
+}

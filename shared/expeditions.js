@@ -1,4 +1,4 @@
-// 1.2: what the Farside data cores say. Fragments only: they hint at the region's purpose without spending it.
+// Farside data-core fragments. Fragments only: they hint at the region's purpose without spending it.
 export const EXPEDITION_LORE = [
   {
     title: 'Fragment I: Not a Wormhole',

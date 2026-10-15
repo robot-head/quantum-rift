@@ -1,4 +1,4 @@
-// Quantum Rift 0.7 "Frontier Life" data: planetary colonies, station defense, ship mastery, the arena, the player
+// Frontier data: planetary colonies, station defense, ship mastery, the arena, the player
 // exchange and leaderboards. Shared by server and client.
 
 // ------------------------------------------------------------------ planetary colonies (unsettled planets in Frontier and the Deep)

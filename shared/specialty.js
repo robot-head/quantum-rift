@@ -1,4 +1,4 @@
-// Quantum Rift 0.8 "Specialists": ten one-of-a-kind ships, each built for a single job (after STFC's specialty ships).
+// Specialist ships: each is built for a single job (after STFC's specialty ships).
 // The loop: the ship's activity drops its blueprints (flying anything) and its unique resource (flying the specialist).
 // The station refines the resource into that ship's parts; parts upgrade five components; a full set unlocks a timed tier-up.
 
@@ -367,7 +367,8 @@ export const TIER_MAX = 5;
 export const COMP_COST = (tier) => ({ parts: 4 + tier * 4, credits: 40000 * tier * tier });
 export const TIER_UP_MIN = [0, 10, 20, 40, 80]; // minutes in drydock to go from tier t to t+1
 // the specialty strength multiplier (1.0 at tier 1 with no special upgrades)
-export function specPower(st) {
-  if (!st) return 1;
-  return 1 + 0.1 * (st.comp && st.comp.special ? st.comp.special : 0) + 0.05 * ((st.tier || 1) - 1);
+export function specPower(specialist) {
+  if (!specialist) return 1;
+  const specialUpgrades = specialist.comp && specialist.comp.special ? specialist.comp.special : 0;
+  return 1 + 0.1 * specialUpgrades + 0.05 * ((specialist.tier || 1) - 1);
 }

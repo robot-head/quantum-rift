@@ -1,4 +1,4 @@
-// Quantum Rift 0.7 "Frontier Life" server feature operations: planetary colonies, station defense raids, ship
+// Frontier feature operations: planetary colonies, station defense raids, ship
 // mastery, the arena, the player exchange, leaderboards, captain profiles and browser notifications.
 import { SYS, STELLARS, FACTIONS, COMMODITIES, MATERIALS, GRADES } from '../shared/galaxy.js';
 import {
@@ -19,6 +19,15 @@ import { credits } from '../shared/rules.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const comName = (id) => (COMMODITIES.find((c) => c.id === id) || { name: id }).name;
+
+// A captain may appear in at most one mode queue. Remove the existing entry
+// before changing modes; splice retains the waiting order of everyone else.
+function leaveArenaQueues(queues, sessionId) {
+  for (const queue of Object.values(queues)) {
+    const index = queue.indexOf(sessionId);
+    if (index >= 0) queue.splice(index, 1);
+  }
+}
 
 export const FrontierOperations = {
   frontierInit() {
@@ -396,10 +405,7 @@ export const FrontierOperations = {
     if (m.op === 'queue') {
       if (s.ent || !d.stellar) return this.toast(s, 'Queue for the arena while docked.');
       if (!ARENA.modes[m.mode]) return;
-      for (const q of Object.values(this.arenaQ)) {
-        const i = q.indexOf(s.id);
-        if (i >= 0) q.splice(i, 1);
-      }
+      leaveArenaQueues(this.arenaQ, s.id);
       this.arenaQ[m.mode].push(s.id);
       this.toast(
         s,
@@ -407,10 +413,7 @@ export const FrontierOperations = {
       );
       this.tryMatch(m.mode);
     } else if (m.op === 'leave') {
-      for (const q of Object.values(this.arenaQ)) {
-        const i = q.indexOf(s.id);
-        if (i >= 0) q.splice(i, 1);
-      }
+      leaveArenaQueues(this.arenaQ, s.id);
       this.toast(s, 'Left the arena queue.');
     }
     this.you(s);

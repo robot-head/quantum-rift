@@ -1,4 +1,4 @@
-// 1.1 "Living Rift": rival captains. Thirty named AI captains with careers of their own: they trade, hunt, mine and
+// Named rival captains have careers of their own: they trade, hunt, mine and
 // raid across the Rift, buy better ships, show up in the systems you visit, and remember how you treated them.
 import { FACTION_HULLS } from './galaxy.js';
 
@@ -222,26 +222,26 @@ const ROLE_FIT = {
   miner: (s) => s.role === 'survey' || s.cargo >= 40,
   explorer: (s) => s.role === 'explorer' || s.role === 'interceptor',
 };
-export function rivalHull(A, fac, wealth, kind) {
-  const all = (FACTION_HULLS[fac] || FACTION_HULLS.spacer)
-    .map((h) => A.ships[h])
-    .filter((s) => s && s.cost > 0 && s.kind !== 'specialist');
-  const fit = kind && ROLE_FIT[kind] ? all.filter(ROLE_FIT[kind]) : all,
-    pool = (fit.length ? fit : all).sort((a, b) => a.cost - b.cost);
+export function rivalHull(assets, faction, wealth, kind) {
+  const availableHulls = (FACTION_HULLS[faction] || FACTION_HULLS.spacer)
+    .map((hullId) => assets.ships[hullId])
+    .filter((ship) => ship && ship.cost > 0 && ship.kind !== 'specialist');
+  const suitableHulls =
+      kind && ROLE_FIT[kind] ? availableHulls.filter(ROLE_FIT[kind]) : availableHulls,
+    pool = (suitableHulls.length ? suitableHulls : availableHulls).sort((a, b) => a.cost - b.cost);
+  // Even a broke rival gets the cheapest suitable hull. Wealth buys upgrades,
+  // not permission to exist; the final fallback handles an empty asset catalog.
   let best = pool[0];
-  for (const s of pool) if (s.cost <= wealth * 0.6) best = s;
+  for (const ship of pool) if (ship.cost <= wealth * 0.6) best = ship;
   return best ? best.id : 703;
 }
-export const MOOD = (rel) =>
-  rel <= -60
-    ? 'nemesis'
-    : rel <= -30
-      ? 'rival'
-      : rel >= 60
-        ? 'ally'
-        : rel >= 25
-          ? 'friendly'
-          : 'neutral';
+export const MOOD = (relationship) => {
+  if (relationship <= -60) return 'nemesis';
+  if (relationship <= -30) return 'rival';
+  if (relationship >= 60) return 'ally';
+  if (relationship >= 25) return 'friendly';
+  return 'neutral';
+};
 export const MOOD_LABEL = {
   nemesis: 'Nemesis',
   rival: 'Rival',
@@ -314,12 +314,13 @@ export const RANKS = [
   [220000, 'Elite'],
 ];
 export function combatRank(score) {
-  let i = 0;
-  for (let k = 0; k < RANKS.length; k++) if (score >= RANKS[k][0]) i = k;
+  let rankIndex = 0;
+  for (let index = 0; index < RANKS.length; index++)
+    if (score >= RANKS[index][0]) rankIndex = index;
   return {
-    i,
-    name: RANKS[i][1],
-    next: RANKS[i + 1] ? RANKS[i + 1][0] : null,
+    i: rankIndex,
+    name: RANKS[rankIndex][1],
+    next: RANKS[rankIndex + 1] ? RANKS[rankIndex + 1][0] : null,
     score: Math.round(score),
   };
 }

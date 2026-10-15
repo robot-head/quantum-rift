@@ -48,7 +48,7 @@ export class Space {
     this.players = 0;
     if (!this.sys.arena)
       for (let i = 0, n = 5 + this.sys.danger + Math.floor(this.ports().length / 2); i < n; i++)
-        this.spawnTraffic(true); // 2.3: busier systems
+        this.spawnTraffic(true); // busier systems
     // asteroids and gas pockets in the system's mining fields: they break into ore that ships scoop up, and regrow
     this.rocks = [];
     for (const f of this.sys.fields || [])
@@ -173,7 +173,7 @@ export class Space {
             : r < 0.85
               ? 'steady'
               : 'reckless');
-    } // 2.4: how a captain fights
+    } // how a captain fights
     const ob = o.bonus || {};
     e.pw = Math.round(
       (H.strength || 10) *
@@ -211,22 +211,24 @@ export class Space {
     if (why) this.events.push(['flash', Math.round(e.x), Math.round(e.y)]);
   }
   root(e) {
-    let r = e,
-      k = 0;
-    while (r && r.owner && k++ < 4) r = this.ships.get(r.owner) || null;
-    return r || e;
+    // Fighters can belong to escorts, which in turn belong to a captain.
+    // Bound the traversal and retain the original entity if its owner is gone.
+    let owner = e,
+      depth = 0;
+    while (owner && owner.owner && depth++ < 4) owner = this.ships.get(owner.owner) || null;
+    return owner || e;
   }
   ports() {
     return (
       this._ports ||
       (this._ports = this.sys.stellars.filter((p) => p.svc && p.svc.includes('L') && !p.site))
     );
-  } // 2.3: where traffic can land
+  } // where traffic can land
   pid(e) {
     const r = this.root(e);
     return r && r.player ? r.player.id : null;
   }
-  // 2.0.3: newcomer protection. Pirates, raiders, swarms and other always-hostile ships never pick a fight with a protected
+  // newcomer protection. Pirates, raiders, swarms and other always-hostile ships never pick a fight with a protected
   // captain (Personal Station below Ops 3) in inner space (danger 0-2), and nobody targets a captain in the first seconds
   // after a jump. Firing on them, or a job's own target, ends the truce for that fight.
   spared(e, o) {
@@ -247,9 +249,7 @@ export class Space {
     if (!(F.pirate || F.alwaysHostile || re.boss || re.bossMinion || re.warFleet)) return false;
     return !!(this.game.newcomer && this.game.newcomer(ro.player.s && ro.player.s.data));
   }
-  // 2.1: can a's fire hurt b? Hostiles always; a captain's own guns also hit any ship not on their side (like EV Nova),
-  // which angers it and costs standing. Escorts and NPCs still only hit their enemies.
-  // 2.1: your wingmates under an attack order (K) go after whatever you have targeted, hostile or not
+  // your wingmates under an attack order (K) go after whatever you have targeted, hostile or not
   ordered(e, t) {
     const r = this.root(e);
     if (
@@ -265,12 +265,14 @@ export class Space {
     const rt = this.root(t);
     return rt === this.root(r.target) && rt !== r && !rt.player;
   }
+  // Player fire can also hit neutral NPCs, provoking them and costing standing.
+  // Escorts need hostility or an explicit attack order; PvP uses isHostile's gates.
   canHit(a, b) {
     if (this.isHostile(a, b)) return !this.spared(a, b);
     if (this.ordered(a, b)) return true;
     if (!a || !b || !a.player || this.sys.arena) return false;
     const rb = this.root(b);
-    if (rb === a || rb.player) return false; // never your own wing; players only in lawless space (isHostile)
+    if (rb === a || rb.player) return false; // own escorts and non-hostile players are protected
     return !b.dead && b.state === 'fly';
   }
   inner() {
@@ -283,19 +285,19 @@ export class Space {
     const ra = this.root(a),
       rb = this.root(b);
     if (ra === rb) return false;
-    if (ra.rescueT > this.t || rb.rescueT > this.t) return false; // 2.6: a downed captain waiting for rescue is left alone
+    if (ra.rescueT > this.t || rb.rescueT > this.t) return false; // a downed captain waiting for rescue is left alone
     const pa = ra.player,
       pb = rb.player;
     if (this.sys.arena) return !!(ra.team && rb.team && ra.team !== rb.team); // arena: teams only
-    if (pa && pb && this.game.features.coop.sameArmada(pa, pb)) return false; // 2.6: Armada members and their wingmates never fight
+    if (pa && pb && this.game.features.coop.sameArmada(pa, pb)) return false; // Armada members and their wingmates never fight
     if (pa && pb)
-      return !!(this.game.features.coop.dueling && this.game.features.coop.dueling(pa, pb)); // 2.6: no open-galaxy PvP, whatever was fired; only agreed duels (and the Crucible, above)
+      return !!(this.game.features.coop.dueling && this.game.features.coop.dueling(pa, pb)); // no open-galaxy PvP, whatever was fired; only agreed duels (and the Crucible, above)
     if (ra.aggro.has(rb.id) || rb.aggro.has(ra.id)) return true;
     if (
       ((ra.boss || ra.bossMinion || ra.kingpin) && pb) ||
       ((rb.boss || rb.bossMinion || rb.kingpin) && pa)
     )
-      return true; // 2.6: Armada contract kingpins too   // invasion bosses attack everyone
+      return true; // Armada contract kingpins and invasion bosses attack everyone
     if (pa || pb) {
       const p = pa || pb,
         npc = pa ? rb : ra,
@@ -304,7 +306,7 @@ export class Space {
       const rh = this.game.features.rivals.rivalHostile
         ? this.game.features.rivals.rivalHostile(npc, p)
         : undefined;
-      if (rh !== undefined) return rh; // 1.1: rivals, hired guns, bribes
+      if (rh !== undefined) return rh; // rivals, hired guns, bribes
       if (F && F.pirate) return rep < 30;
       if (F && F.alwaysHostile) return true;
       if (npc.mission && npc.mission.owner === p.id) return true;
@@ -348,14 +350,14 @@ export class Space {
     const st = this.game.features.living.stateOf
         ? this.game.features.living.stateOf(this.id)
         : null,
-      SX = st ? STATES[st.kind] : null; // 2.4: the system's state shapes its traffic
+      SX = st ? STATES[st.kind] : null; // the system's state shapes its traffic
     if (st && st.kind === 'war' && st.enemy && TRAFFIC[st.enemy] && Math.random() < 0.35) {
       const lead = this.spawnGroup('patrol', st.enemy, TRAFFIC[st.enemy].war, initial);
       if (lead)
         for (const e of this.ships.values())
           if (e === lead || e.owner === lead.id) e.warFleet = true;
       return lead;
-    } // 2.5.2: tagged, so newcomers are spared
+    } // tagged, so newcomers are spared
     if (st && st.kind === 'pirates' && Math.random() < 0.3) roll = -1; // force a raid roll below
     if (FACTIONS[fac].pirate) kind = 'raid';
     else if ((S.danger >= 2 || roll < 0) && roll < 0.08 * S.danger * (this.m ? this.m.raid : 1)) {
@@ -374,7 +376,7 @@ export class Space {
     ) {
       kind = 'trade';
       f = 'spacer';
-    } // 2.3: pirate havens get visiting smugglers and free traders too
+    } // pirate havens get visiting smugglers and free traders too
     else if (
       kind === 'raid' &&
       !FACTIONS[S.faction].pirate &&
@@ -384,7 +386,7 @@ export class Space {
       kind = 'trade';
       f = T.traders.length ? fac : 'spacer';
       roll = 1;
-    } // 2.0.3: raiders don't pile up while traders come and go
+    } // raiders don't pile up while traders come and go
     let pool =
       kind === 'trade'
         ? TRAFFIC[f].traders.length
@@ -394,7 +396,7 @@ export class Space {
     if (kind === 'raid' && this.inner() && pool.length > 2)
       pool = [...pool]
         .sort((a, b) => ((this.A.ships[a] || {}).cost || 0) - ((this.A.ships[b] || {}).cost || 0))
-        .slice(0, pool.length - 1); // 2.0.3: no destroyers raiding inner space
+        .slice(0, pool.length - 1); // no destroyers raiding inner space
     const hull = pick(pool);
     if (!this.A.ships[hull]) return;
     const n =
@@ -402,7 +404,7 @@ export class Space {
         ? Math.random() < 0.22
           ? 2 + (Math.random() < 0.4 ? 1 : 0)
           : 1
-        : (Math.random() < 0.4 ? 2 : 1) + (kind === 'raid' && S.danger > 3 ? 1 : 0); // 2.3: some traders run in small convoys
+        : (Math.random() < 0.4 ? 2 : 1) + (kind === 'raid' && S.danger > 3 ? 1 : 0); // some traders run in small convoys
     let lead = null;
     for (let i = 0; i < n; i++) {
       const h =
@@ -451,7 +453,7 @@ export class Space {
       }
     }
   }
-  // 2.4: a group of warships of one power (a border war's attackers)
+  // a group of warships of one power (a border war's attackers)
   spawnGroup(kind, f, pool, initial) {
     const hull = pick(pool.filter((h) => this.A.ships[h]));
     if (!hull) return;
@@ -567,45 +569,47 @@ export class Space {
   }
 
   // ------------------------------------------------------------------ AI
-  steer(e, tx, ty, arrive, tvx = 0, tvy = 0) {
-    const st = e.st,
-      dx = tx - e.x,
-      dy = ty - e.y,
-      d = Math.hypot(dx, dy),
-      sp = Math.hypot(e.vx, e.vy);
-    const want = Math.atan2(dx, -dy),
-      diff = angDiff(want, e.a);
+  steer(ship, targetX, targetY, arrive, targetVx = 0, targetVy = 0) {
+    const stats = ship.st,
+      dx = targetX - ship.x,
+      dy = targetY - ship.y,
+      distance = Math.hypot(dx, dy),
+      speed = Math.hypot(ship.vx, ship.vy);
+    const targetAngle = Math.atan2(dx, -dy),
+      angleDelta = angDiff(targetAngle, ship.a);
     if (arrive) {
-      // 2.0.1: plan a speed that falls to zero at the target (allowing time to turn around), and steer to close the velocity error
-      const tflip = Math.PI / Math.max(0.3, st.turn),
-        ux = d > 1 ? dx / d : 0,
-        uy = d > 1 ? dy / d : 0;
-      const vAllow = Math.min(
-        st.maxSpeed * 0.95,
-        Math.sqrt(2 * st.accel * Math.max(0, d - 10 - sp * tflip * 0.6)) * 0.8,
+      // Reserve braking distance and time to turn, then steer to close the
+      // velocity error relative to the destination (which may itself be moving).
+      const turnAroundTime = Math.PI / Math.max(0.3, stats.turn),
+        unitX = distance > 1 ? dx / distance : 0,
+        unitY = distance > 1 ? dy / distance : 0;
+      const allowedSpeed = Math.min(
+        stats.maxSpeed * 0.95,
+        Math.sqrt(2 * stats.accel * Math.max(0, distance - 10 - speed * turnAroundTime * 0.6)) *
+          0.8,
       );
-      const ex = tvx + ux * vAllow - e.vx,
-        ey = tvy + uy * vAllow - e.vy,
-        em = Math.hypot(ex, ey);
-      if (em < 8) {
-        e.inp = { turn: 0, thrust: 0 };
-        return d;
+      const velocityErrorX = targetVx + unitX * allowedSpeed - ship.vx,
+        velocityErrorY = targetVy + unitY * allowedSpeed - ship.vy,
+        velocityError = Math.hypot(velocityErrorX, velocityErrorY);
+      if (velocityError < 8) {
+        ship.inp = { turn: 0, thrust: 0 };
+        return distance;
       }
-      const wa = Math.atan2(ex, -ey),
-        da = angDiff(wa, e.a);
-      e.inp = {
-        turn: Math.abs(da) < st.turn * DT ? 0 : Math.sign(da),
-        thrust: Math.abs(da) < 0.45 && em > 12 ? 1 : 0,
+      const correctionAngle = Math.atan2(velocityErrorX, -velocityErrorY),
+        correctionDelta = angDiff(correctionAngle, ship.a);
+      ship.inp = {
+        turn: Math.abs(correctionDelta) < stats.turn * DT ? 0 : Math.sign(correctionDelta),
+        thrust: Math.abs(correctionDelta) < 0.45 && velocityError > 12 ? 1 : 0,
       };
-      if (Math.abs(da) < st.turn * DT) e.a = wa;
-      return d;
+      if (Math.abs(correctionDelta) < stats.turn * DT) ship.a = correctionAngle;
+      return distance;
     }
-    e.inp = {
-      turn: Math.abs(diff) < st.turn * DT ? 0 : Math.sign(diff),
-      thrust: Math.abs(diff) < 0.7 ? 1 : 0,
+    ship.inp = {
+      turn: Math.abs(angleDelta) < stats.turn * DT ? 0 : Math.sign(angleDelta),
+      thrust: Math.abs(angleDelta) < 0.7 ? 1 : 0,
     };
-    if (Math.abs(diff) < st.turn * DT) e.a = want;
-    return d;
+    if (Math.abs(angleDelta) < stats.turn * DT) ship.a = targetAngle;
+    return distance;
   }
   findTarget(e, range = 1800) {
     let best = null,
@@ -625,7 +629,7 @@ export class Space {
     e.think -= DT;
     const owner = e.owner ? this.ships.get(e.owner) : null;
     if (e.ai === 'escort' && !owner)
-      e.ai = e.fighterOf ? 'leave' : e.tradeMate ? 'trade' : 'patrol'; // 2.3: a convoy whose leader landed goes about its own trade
+      e.ai = e.fighterOf ? 'leave' : e.tradeMate ? 'trade' : 'patrol'; // a convoy whose leader landed goes about its own trade
     if (e.armor < e.st.armor * 0.15 && !e.player && !e.noDisable) {
       // disabled: drifts; unclaimed wrecks are towed away after a while
       if (!e.disabled) e.disT = this.t;
@@ -649,7 +653,7 @@ export class Space {
         )
           e.target = null;
         if (e.rival && this.game.features.rivals.rivalThink && !e.owner)
-          this.game.features.rivals.rivalThink(e, this); // 1.1
+          this.game.features.rivals.rivalThink(e, this);
         if (e.distractT > this.t) {
           e.target = null;
           if (e.dest) {
@@ -658,7 +662,7 @@ export class Space {
           }
         } // raiders chasing jettisoned cargo
         if (e.ai === 'escort' && owner) {
-          const ord = owner.order || 'gather'; // 1.1 fleet commands: gather, attack, hold, holdfire, loot
+          const ord = owner.order || 'gather'; // fleet commands: gather, attack, hold, holdfire, loot
           if (e.ordSeq !== owner.orderSeq) {
             e.ordSeq = owner.orderSeq;
             e.holdAt = { x: e.x, y: e.y };
@@ -695,7 +699,7 @@ export class Space {
           e.target = null;
           e.fled = true;
           this.events.push(['flee', e.id]);
-        } // 2.4: a beaten captain runs for the jump point
+        } // a beaten captain runs for the jump point
         if (e.ai === 'flee') e.target = null;
       } // (not recalled)
     }
@@ -709,7 +713,7 @@ export class Space {
           e.dest =
             this.ports().length && Math.random() < 0.75
               ? pick(this.ports())
-              : { x: rnd(-3000, 3000), y: rnd(-3000, 3000), out: true }; // 2.3: traders fly to worlds they can land on
+              : { x: rnd(-3000, 3000), y: rnd(-3000, 3000), out: true }; // traders fly to worlds they can land on
         const d = this.steer(e, e.dest.x, e.dest.y, !e.dest.out);
         if (
           !e.dest.out &&
@@ -757,7 +761,7 @@ export class Space {
           e.catchup = owner.st;
           if (d < Math.max(50, owner.st.size * 0.35)) this.dock(e, owner);
           break;
-        } // 2.1: drones flying home
+        } // drones flying home
         const ord = owner.order || 'gather';
         if (ord === 'hold' && e.holdAt) {
           const d = this.steer(e, e.holdAt.x, e.holdAt.y, true);
@@ -838,7 +842,7 @@ export class Space {
       }
     }
   }
-  // 2.4 personalities: cautious captains run early, steady ones when badly hurt, reckless ones never; named and story ships fight to the end
+  // personalities: cautious captains run early, steady ones when badly hurt, reckless ones never; named and story ships fight to the end
   mayFlee(e) {
     const thr = { cautious: 0.45, steady: 0.27, reckless: 0 }[e.pers] || 0;
     if (
@@ -857,7 +861,7 @@ export class Space {
       return false;
     return e.armor < e.st.armor * thr && e.shield < e.st.shield * 0.15;
   }
-  // 2.4: a ship under attack calls nearby ships of its own side to help
+  // a ship under attack calls nearby ships of its own side to help
   callHelp(s, attacker) {
     if (s.player || this.sys.arena || (s.helpT || -99) > this.t - 5) return;
     s.helpT = this.t;
@@ -900,7 +904,7 @@ export class Space {
       d < best * 1.1 &&
       d > Math.max(140, e.st.size)
     ) {
-      // 2.4: capitals with turrets circle and fire broadsides instead of ramming
+      // capitals with turrets circle and fire broadsides instead of ramming
       const side = e.id % 2 ? 1 : -1,
         ta =
           Math.atan2(dx, -dy) +
@@ -1048,7 +1052,7 @@ export class Space {
     }
     return best;
   }
-  // 2.1: a captain's fighter bays work as a toggle on F: tap to launch every drone, tap again to call them all home
+  // a captain's fighter bays work as a toggle on F: tap to launch every drone, tap again to call them all home
   toggleDrones(e) {
     const out = [...this.ships.values()].filter((s) => s.fighterOf === e.id && !s.dead);
     const say = (m) => {
@@ -1134,7 +1138,7 @@ export class Space {
         if (f) this.fire(e, g, f, angleTo(e, f.x, f.y));
         continue;
       }
-      if (p.bay && e.player) continue; // 2.1: bays launch and recall on a tap of F (toggleDrones)
+      if (p.bay && e.player) continue; // bays launch and recall on a tap of F (toggleDrones)
       const wantFire = e.player ? (g.sec ? inp.fire2 : inp.fire1) : !!t;
       if (!wantFire) continue;
       const tgt = t && !t.dead ? t : null;
@@ -1202,14 +1206,14 @@ export class Space {
       this.game.features.coop.duelHit &&
       this.game.features.coop.duelHit(srcRoot, s, this)
     )
-      return [done, hadShield ? 1 : 0, srcRoot.id]; // 2.6: a duel stops at disabled
+      return [done, hadShield ? 1 : 0, srcRoot.id]; // a duel stops at disabled
     if (
       s.armor <= 0 &&
       s.player &&
       this.game.features.coop.rescueHold &&
       this.game.features.coop.rescueHold(s, srcRoot, this)
     )
-      return [done, hadShield ? 1 : 0, srcRoot ? srcRoot.id : 0]; // 2.6: an Armada can rescue a downed captain
+      return [done, hadShield ? 1 : 0, srcRoot ? srcRoot.id : 0]; // an Armada can rescue a downed captain
     if (s.armor <= 0) this.kill(s, srcRoot);
     return [done, hadShield ? 1 : 0, srcRoot ? srcRoot.id : 0];
   }
@@ -1227,7 +1231,7 @@ export class Space {
     }
     if (s.boss) this.game.features.fronts.onBossKilled(s, this);
     if (s.convoyOf) this.game.features.fronts.onConvoyLost(s);
-    if (s.wingUid && this.game.features.docks.onWingLost) this.game.features.docks.onWingLost(s); // 2.1
+    if (s.wingUid && this.game.features.docks.onWingLost) this.game.features.docks.onWingLost(s);
     if (s.wave) this.game.features.frontier.onWaveKill(s);
     if (this.game.features.hostile.maybeChest) this.game.features.hostile.maybeChest(this, s, by);
     if (by && by.player) this.game.onKill(by.player, s, this, s.lastHitBy && s.lastHitBy !== by.id);
@@ -1262,144 +1266,181 @@ export class Space {
       this.m = this.game.features.fronts.mods ? this.game.features.fronts.mods(this.id) : null;
       this.mT = this.mT || 1;
     }
-    const S = this.sys;
+    // These phases share mutable entities. Keep the order: input/AI and weapons,
+    // projectile hits, expiry/regrowth, then pickups by surviving player ships.
+    this.#advanceTraffic();
+    this.#advanceShips();
+    this.#advanceProjectiles();
+    this.#advanceDebris();
+    this.#collectLoot();
+  }
+
+  #advanceTraffic() {
+    const system = this.sys;
     if (this.players > 0 && !this.sys.arena) {
       this.spawnT -= DT;
-      const SX = this.game.features.living.stateOf && this.game.features.living.stateOf(this.id),
-        tm = SX ? STATES[SX.kind].traders || 1 : 1;
-      const want = Math.min(
+      const systemState =
+          this.game.features.living.stateOf && this.game.features.living.stateOf(this.id),
+        trafficMultiplier = systemState ? STATES[systemState.kind].traders || 1 : 1;
+      const desiredTraffic = Math.min(
         28,
-        (6 + this.ports().length * 2 + S.stellars.length * 0.5 + S.danger * 1.5) * tm,
-      ); // 2.3: more traffic everywhere; 2.4: booms and festivals bring more
-      const npcs = [...this.ships.values()].filter((e) => !e.player && !e.owner).length;
+        (6 + this.ports().length * 2 + system.stellars.length * 0.5 + system.danger * 1.5) *
+          trafficMultiplier,
+      );
+      const npcCount = [...this.ships.values()].filter(
+        (ship) => !ship.player && !ship.owner,
+      ).length;
       if (this.spawnT <= 0) {
         this.spawnT = rnd(2, 5);
-        if (npcs < want) this.spawnTraffic(false);
+        if (npcCount < desiredTraffic) this.spawnTraffic(false);
       }
     }
-    for (const e of this.ships.values()) {
-      if (e.state === 'jumpout') {
-        e.jumpT -= DT;
-        const sp = e.st.maxSpeed * 3;
-        e.vx = Math.sin(e.a) * sp;
-        e.vy = -Math.cos(e.a) * sp;
-        e.x += e.vx * DT;
-        e.y += e.vy * DT;
-        if (e.jumpT <= 0) this.game.finishJump(e, this);
+  }
+
+  #advanceShips() {
+    for (const ship of this.ships.values()) {
+      if (ship.state === 'jumpout') {
+        ship.jumpT -= DT;
+        const jumpSpeed = ship.st.maxSpeed * 3;
+        ship.vx = Math.sin(ship.a) * jumpSpeed;
+        ship.vy = -Math.cos(ship.a) * jumpSpeed;
+        ship.x += ship.vx * DT;
+        ship.y += ship.vy * DT;
+        if (ship.jumpT <= 0) this.game.finishJump(ship, this);
         continue;
       }
-      if (e.player) {
-        const q = e.player.inputs;
-        const inp = q.length ? q.shift() : e.player.lastInput;
-        if (inp) {
-          e.player.lastInput = inp;
-          e.inp = inp;
-          e.seq = inp.seq;
+      if (ship.player) {
+        const inputs = ship.player.inputs;
+        const input = inputs.length ? inputs.shift() : ship.player.lastInput;
+        if (input) {
+          ship.player.lastInput = input;
+          ship.inp = input;
+          ship.seq = input.seq;
         }
-      } else this.ai(e);
-      const st = e.catchup
+      } else this.ai(ship);
+      const movementStats = ship.catchup
         ? {
-            ...e.st,
-            maxSpeed: Math.max(e.st.maxSpeed, e.catchup.maxSpeed * 1.15),
-            accel: Math.max(e.st.accel, e.catchup.accel * 1.1),
-            turn: Math.max(e.st.turn, e.catchup.turn),
+            ...ship.st,
+            maxSpeed: Math.max(ship.st.maxSpeed, ship.catchup.maxSpeed * 1.15),
+            accel: Math.max(ship.st.accel, ship.catchup.accel * 1.1),
+            turn: Math.max(ship.st.turn, ship.catchup.turn),
           }
-        : e.st;
-      step(e, st, e.disabled ? {} : e.inp);
-      e.shield = Math.min(
-        e.st.shield,
-        e.shield +
-          e.st.shieldRe *
+        : ship.st;
+      step(ship, movementStats, ship.disabled ? {} : ship.inp);
+      ship.shield = Math.min(
+        ship.st.shield,
+        ship.shield +
+          ship.st.shieldRe *
             DT *
-            (this.t - (e.hitT || -9) > 2 ? 1 : 0.4) *
+            (this.t - (ship.hitT || -9) > 2 ? 1 : 0.4) *
             (this.m ? this.m.shieldRe : 1) *
-            (e.coopRe || 1),
-      ); // 2.6: coopRe is the Armada buff
-      if (e.st.armorRe) e.armor = Math.min(e.st.armor, e.armor + e.st.armorRe * DT);
-      if (e.st.fuelRe) e.fuel = Math.min(e.st.fuel, e.fuel + e.st.fuelRe * DT);
-      if (!e.disabled) this.weapons(e);
-      if (e.player && e.state === 'fly' && this.sys.gate && !(e.wormT > this.t))
-        for (const p of this.sys.stellars)
-          if (p.wormhole && Math.hypot(p.x - e.x, p.y - e.y) < p.r * 0.5) {
-            this.game.wormholeTransit(e, this, p);
+            (ship.coopRe || 1),
+      ); // coopRe is the Armada shield-regeneration multiplier.
+      if (ship.st.armorRe) ship.armor = Math.min(ship.st.armor, ship.armor + ship.st.armorRe * DT);
+      if (ship.st.fuelRe) ship.fuel = Math.min(ship.st.fuel, ship.fuel + ship.st.fuelRe * DT);
+      if (!ship.disabled) this.weapons(ship);
+      if (ship.player && ship.state === 'fly' && this.sys.gate && !(ship.wormT > this.t))
+        for (const stellar of this.sys.stellars)
+          if (
+            stellar.wormhole &&
+            Math.hypot(stellar.x - ship.x, stellar.y - ship.y) < stellar.r * 0.5
+          ) {
+            this.game.wormholeTransit(ship, this, stellar);
             break;
           }
     }
-    for (const s of this.shots) {
-      if (s.target && !s.target.dead) {
-        const want = angleTo(s, s.target.x, s.target.y),
-          cur = Math.atan2(s.vx, -s.vy),
-          d = angDiff(want, cur),
-          sp = Math.hypot(s.vx, s.vy);
-        const na = cur + Math.max(-3 * DT, Math.min(3 * DT, d));
-        s.vx = Math.sin(na) * sp;
-        s.vy = -Math.cos(na) * sp;
+  }
+
+  #advanceProjectiles() {
+    for (const shot of this.shots) {
+      if (shot.target && !shot.target.dead) {
+        const targetAngle = angleTo(shot, shot.target.x, shot.target.y),
+          currentAngle = Math.atan2(shot.vx, -shot.vy),
+          angleDelta = angDiff(targetAngle, currentAngle),
+          speed = Math.hypot(shot.vx, shot.vy);
+        const nextAngle = currentAngle + Math.max(-3 * DT, Math.min(3 * DT, angleDelta));
+        shot.vx = Math.sin(nextAngle) * speed;
+        shot.vy = -Math.cos(nextAngle) * speed;
       }
-      s.x += s.vx * DT;
-      s.y += s.vy * DT;
-      s.life -= DT;
-      if (s.life <= 0) continue;
-      const owner = this.ships.get(s.owner);
-      for (const e of this.ships.values()) {
-        if (e.id === s.owner || e.state !== 'fly') continue;
-        if (owner ? !this.canHit(owner, e) : false) continue;
-        const r = Math.max(9, e.st.size * 0.32);
+      shot.x += shot.vx * DT;
+      shot.y += shot.vy * DT;
+      shot.life -= DT;
+      if (shot.life <= 0) continue;
+      const owner = this.ships.get(shot.owner);
+      for (const ship of this.ships.values()) {
+        if (ship.id === shot.owner || ship.state !== 'fly') continue;
+        if (owner ? !this.canHit(owner, ship) : false) continue;
+        const collisionRadius = Math.max(9, ship.st.size * 0.32);
         if (
-          Math.abs(e.x - s.x) < r &&
-          Math.abs(e.y - s.y) < r &&
-          Math.hypot(e.x - s.x, e.y - s.y) < r
+          Math.abs(ship.x - shot.x) < collisionRadius &&
+          Math.abs(ship.y - shot.y) < collisionRadius &&
+          Math.hypot(ship.x - shot.x, ship.y - shot.y) < collisionRadius
         ) {
-          const r = this.damage(e, s.dmgA, s.dmgS, owner || null, s.p.ion);
-          s.life = 0;
-          this.hitEv(s.x, s.y, s.w, e, r);
-          if (s.p.blast) this.events.push(['blast', Math.round(s.x), Math.round(s.y), s.p.blast]);
-          if (s.p.blast)
-            for (const o of this.ships.values())
+          const damageResult = this.damage(ship, shot.dmgA, shot.dmgS, owner || null, shot.p.ion);
+          shot.life = 0;
+          this.hitEv(shot.x, shot.y, shot.w, ship, damageResult);
+          if (shot.p.blast)
+            this.events.push(['blast', Math.round(shot.x), Math.round(shot.y), shot.p.blast]);
+          if (shot.p.blast)
+            for (const otherShip of this.ships.values())
               if (
-                o !== e &&
+                otherShip !== ship &&
                 owner &&
-                this.canHit(owner, o) &&
-                Math.hypot(o.x - s.x, o.y - s.y) < s.p.blast
+                this.canHit(owner, otherShip) &&
+                Math.hypot(otherShip.x - shot.x, otherShip.y - shot.y) < shot.p.blast
               )
-                this.damage(o, s.dmgA * 0.5, s.dmgS * 0.5, owner);
+                this.damage(otherShip, shot.dmgA * 0.5, shot.dmgS * 0.5, owner);
           break;
         }
       }
-      if (s.life > 0 && this.rocks.length) {
-        const k = this.rockAt(s.x, s.y);
-        if (k) {
-          this.hitRock(k, s.dmgA + s.dmgS * 0.3, this.A.weapons[s.w] && this.A.weapons[s.w].mining);
-          s.life = 0;
-          this.events.push(['hit', Math.round(s.x), Math.round(s.y), s.w]);
+      if (shot.life > 0 && this.rocks.length) {
+        const rock = this.rockAt(shot.x, shot.y);
+        if (rock) {
+          this.hitRock(
+            rock,
+            shot.dmgA + shot.dmgS * 0.3,
+            this.A.weapons[shot.w] && this.A.weapons[shot.w].mining,
+          );
+          shot.life = 0;
+          this.events.push(['hit', Math.round(shot.x), Math.round(shot.y), shot.w]);
         }
       }
     }
-    this.shots = this.shots.filter((s) => s.life > 0);
-    this.beams = this.beams.filter((b) => b.until > this.t && this.ships.has(b.id));
-    for (const k of this.rocks)
-      if (k.down && this.t > k.down) {
-        k.down = 0;
-        this.events.push(['rock', k.id, 100]);
+  }
+
+  #advanceDebris() {
+    this.shots = this.shots.filter((shot) => shot.life > 0);
+    this.beams = this.beams.filter((beam) => beam.until > this.t && this.ships.has(beam.id));
+    for (const rock of this.rocks)
+      if (rock.down && this.t > rock.down) {
+        rock.down = 0;
+        this.events.push(['rock', rock.id, 100]);
       }
-    for (const l of this.loot) {
-      l.x += l.vx * DT;
-      l.y += l.vy * DT;
-      l.vx *= 0.99;
-      l.vy *= 0.99;
+    for (const item of this.loot) {
+      item.x += item.vx * DT;
+      item.y += item.vy * DT;
+      item.vx *= 0.99;
+      item.vy *= 0.99;
     }
-    this.loot = this.loot.filter((l) => this.t - l.t < (l.it.ore ? 150 : 90));
-    for (const e of this.ships.values())
-      if (e.player && e.state === 'fly') {
-        const reach = Math.max(30, e.st.size * 0.5) * (e.hull === 810 ? 4 : 1); // the Tidecaller's tractor tentacles
-        for (const l of this.loot)
-          if (!l.taken && Math.hypot(l.x - e.x, l.y - e.y) < reach) {
-            if (this.game.onLoot(e.player, l.it) === false) continue;
-            l.taken = true;
-            this.events.push(['pickup', l.id]);
+    this.loot = this.loot.filter((item) => this.t - item.t < (item.it.ore ? 150 : 90));
+  }
+
+  #collectLoot() {
+    for (const ship of this.ships.values())
+      if (ship.player && ship.state === 'fly') {
+        const reach = Math.max(30, ship.st.size * 0.5) * (ship.hull === 810 ? 4 : 1); // the Tidecaller's tractor tentacles
+        for (const item of this.loot)
+          if (!item.taken && Math.hypot(item.x - ship.x, item.y - ship.y) < reach) {
+            if (this.game.onLoot(ship.player, item.it) === false) continue;
+            item.taken = true;
+            this.events.push(['pickup', item.id]);
           }
       }
-    this.loot = this.loot.filter((l) => !l.taken);
+    this.loot = this.loot.filter((item) => !item.taken);
   }
+
+  // Snapshot arrays are a positional wire protocol consumed by the client.
+  // Keep their field order and quantization stable; events drain once per snapshot.
   snapshot() {
     const ships = [];
     for (const e of this.ships.values()) {

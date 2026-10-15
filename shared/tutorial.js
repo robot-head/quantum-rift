@@ -1,4 +1,4 @@
-// The career guide (1.0): twenty goals from first flight to your first capital ship. The first five are the original
+// The career guide: milestones from first flight to your first capital ship. The first five are the original
 // first-flight tutorial (event goals); the rest are checked against your progress. The client shows the current one.
 const outfits = (d) => Object.values(d.ship.outfits || {}).reduce((a, b) => a + b, 0);
 export const TUTORIAL = [
@@ -146,10 +146,16 @@ export const TUTORIAL = [
     mat: ['alloy', 3, 1],
   },
 ];
-// 2.5: three steps were added; saves from before move to the same goal in the longer list
+// Version 2 inserted two steps after index 8 and one after index 15.
+// Keep these historical boundaries: they map older save indices, not current goals.
 export const TUT_VERSION = 2;
-export function tutMigrate(d) {
-  if ((d.tutV || 1) >= TUT_VERSION) return;
-  if (d.tut != null) d.tut = d.tut <= 8 ? d.tut : d.tut <= 15 ? d.tut + 2 : d.tut + 3;
-  d.tutV = TUT_VERSION;
+export function tutMigrate(save) {
+  if ((save.tutV || 1) >= TUT_VERSION) return;
+  if (save.tut != null) {
+    const previousIndex = save.tut;
+    if (previousIndex <= 8) save.tut = previousIndex;
+    else if (previousIndex <= 15) save.tut = previousIndex + 2;
+    else save.tut = previousIndex + 3;
+  }
+  save.tutV = TUT_VERSION;
 }

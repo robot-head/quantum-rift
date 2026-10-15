@@ -120,7 +120,7 @@ export function crewHtml(G) {
       })
       .join('') +
     '</div>';
-  h += lowerDeckHtml(G); // 1.2
+  h += lowerDeckHtml(G);
   return h;
 }
 
