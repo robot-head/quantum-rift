@@ -11,7 +11,12 @@
     "test:features": "node test/features.js",
     "test:types": "node test/typecheck-contracts.js",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:regression": "node tools/test-regression.js",
+    "test:network": "node tools/test-server.js network",
+    "test:browser": "node tools/test-server.js browser",
+    "test:package": "node tools/test-server.js status",
+    "package": "sh tools/package.sh"
   },
   "engines": {
     "node": ">=18"
@@ -19,6 +24,7 @@
   "license": "UNLICENSED",
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "playwright": "1.64.1",
     "prettier": "3.9.10",
     "typescript": "^7.0.2"
   }

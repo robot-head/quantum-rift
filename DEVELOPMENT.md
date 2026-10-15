@@ -65,6 +65,9 @@ and was rebuilt from the assets of **EV Quantum**, a plug-in for EV Nova.
 
 ## Formatting
 
+CI, local check commands, release ZIP verification, and the manual delivery
+workflow are documented in [CI and release delivery](docs/CI-CD.md).
+
 Run `npm ci` to install the pinned development tools, then `npm run format` to
 format the repository or `npm run format:check` to check it without writing files.
 Prettier covers its supported source and documentation formats (JavaScript, JSON,

@@ -3,3 +3,5 @@ data/
 solo-data/
 node_modules/
 *.log
+.artifacts/
+out/
