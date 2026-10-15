@@ -4,9 +4,12 @@
 # (client/assets/ships/*.webp) follow in as many parts as needed, each under 28 MB. Every part unzips into the same
 # "Quantum Rift vX.Y.Z" folder.
 set -e
-V=$(node -p "require('./package.json').version"); NAME="Quantum Rift v$V"; OUT=$(cd "${1:-..}" && pwd)/out; STAGE=$(mktemp -d)
+V=$(git show HEAD:package.json | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>console.log(JSON.parse(s).version))'); NAME="Quantum Rift v$V"; OUT=$(cd "${1:-..}" && pwd)/out; STAGE=$(mktemp -d)
+trap 'rm -rf "$STAGE"' EXIT HUP INT TERM
 mkdir -p "$STAGE/$NAME" "$OUT"
-tar --exclude=./data --exclude=./solo-data --exclude=./node_modules --exclude='*.log' --exclude=./CONTINUE.md --exclude='__pycache__' -cf - . | tar -xf - -C "$STAGE/$NAME"
+# Only committed source: never ship .git, local saves, credentials, or dependencies.
+git archive --format=tar --output="$STAGE/source.tar" HEAD
+tar -xf "$STAGE/source.tar" -C "$STAGE/$NAME"
 rm -f "$OUT/$NAME.zip" "$OUT/$NAME part "*.zip
 (cd "$STAGE" && zip -qr -9 "$OUT/$NAME.zip" "$NAME")
 if [ "$(wc -c < "$OUT/$NAME.zip")" -gt 28000000 ]; then

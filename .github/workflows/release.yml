@@ -1,0 +1,87 @@
+name: Release ZIPs
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag on main (for example v2.6)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.tag.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Validate release tag and main ancestry
+        id: tag
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'Invalid version tag'; exit 1; }
+          sha=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          git merge-base --is-ancestor "$sha" origin/main
+          version=$(git show "$sha:package.json" | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>console.log(JSON.parse(s).version))')
+          [[ "$RELEASE_TAG" == "v$version" ]] || { echo 'Tag must match package.json version'; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.validate.outputs.sha }}
+
+  publish:
+    if: github.repository == 'KnightMagnus/quantum-rift'
+    needs: [validate, checks]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-zips
+          path: release
+      - name: Verify checksums and publish immutable release assets
+        working-directory: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ needs.validate.outputs.sha }}
+        run: |
+          sha256sum --check SHA256SUMS
+          tag_sha=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
+          tag_type=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.type')
+          if [[ "$tag_type" == tag ]]; then
+            tag_sha=$(gh api "repos/$GH_REPO/git/tags/$tag_sha" --jq '.object.sha')
+          fi
+          [[ "$tag_sha" == "$RELEASE_SHA" ]] || { echo 'Tag moved after verification'; exit 1; }
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to replace its assets'
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" --verify-tag --title "Quantum Rift $RELEASE_TAG" \
+            --notes 'Download every ZIP part and extract them into the same directory. Verify the downloads with SHA256SUMS. Start using the included launcher or node server/main.js. Node.js 18+ is required.' \
+            ./*.zip SHA256SUMS
